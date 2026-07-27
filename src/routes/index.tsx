@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
   LineChart,
@@ -135,7 +135,21 @@ function Dashboard() {
               <div className="text-xs text-muted-foreground">Dealership Priority</div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <nav className="mr-2 flex items-center gap-1 text-sm">
+              <Link
+                to="/"
+                className="rounded-md bg-muted px-3 py-1.5 text-foreground"
+              >
+                Dashboard
+              </Link>
+              <Link
+                to="/data"
+                className="rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                Data
+              </Link>
+            </nav>
             <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
               <SelectTrigger className="h-9 w-[150px] border-border/60 bg-background text-sm">
                 <SelectValue />
