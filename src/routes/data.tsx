@@ -210,13 +210,42 @@ function DataPage() {
       </header>
 
       <main className="mx-auto max-w-[1400px] px-8 py-10">
-        <div className="mb-8">
-          <h1 className="text-[28px] font-semibold tracking-tight">
-            Data validation & mapping
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Reconcile dealership names across CRM, DMS, and media buy exports.
-          </p>
+        <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-[28px] font-semibold tracking-tight">
+              Data validation & mapping
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Reconcile dealership names across CRM, DMS, and media buy exports.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="text-right text-xs text-muted-foreground">
+              <div>
+                Roster: <span className="font-medium text-foreground">{canonical.length}</span>{" "}
+                dealerships
+              </div>
+              <div>
+                {lastRefresh
+                  ? `Refreshed ${lastRefresh.toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}`
+                  : "Not refreshed yet"}
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onRefresh}
+              disabled={refreshing}
+            >
+              <RefreshCw
+                className={cn("mr-1.5 h-3.5 w-3.5", refreshing && "animate-spin")}
+              />
+              {refreshing ? "Refreshing…" : "Refresh roster"}
+            </Button>
+          </div>
         </div>
 
         <section className="mb-8 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-border/60 bg-border/60 md:grid-cols-4">
@@ -249,6 +278,7 @@ function DataPage() {
         <Tabs defaultValue="validation">
           <TabsList className="mb-6">
             <TabsTrigger value="validation">Validation</TabsTrigger>
+            <TabsTrigger value="coverage">Coverage</TabsTrigger>
             <TabsTrigger value="mapping">Mapping editor</TabsTrigger>
           </TabsList>
 
@@ -256,8 +286,12 @@ function DataPage() {
             <ValidationView issues={report.issues} />
           </TabsContent>
 
+          <TabsContent value="coverage">
+            <CoverageView canonical={canonical} mapping={mapping} />
+          </TabsContent>
+
           <TabsContent value="mapping">
-            <MappingEditor />
+            <MappingEditor version={version} />
           </TabsContent>
         </Tabs>
       </main>
