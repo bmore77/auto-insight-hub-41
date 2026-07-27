@@ -1,6 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { computeMetrics } from "@/lib/dealerships";
+import { useEffect, useMemo, useState } from "react";
+import {
+  computeMetrics,
+  hasRealMetrics,
+  refreshRoster,
+  ROSTER_SIZE,
+  type DealershipMetrics,
+} from "@/lib/dealerships";
 import { SOURCES, type SourceKey } from "@/lib/sources";
 import {
   normalizeName,
@@ -26,6 +32,7 @@ import {
   CheckCircle2,
   Copy,
   Link2Off,
+  RefreshCw,
   Search,
   Trash2,
   Upload,
@@ -64,12 +71,34 @@ type Issue = {
 
 function DataPage() {
   const [mapping] = useMapping();
+  const [version, setVersion] = useState(0);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const canonical = useMemo(() => computeMetrics(), []);
+  const canonical = useMemo<DealershipMetrics[]>(
+    () => computeMetrics(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [version],
+  );
   const canonicalSet = useMemo(
     () => new Set(canonical.map((d) => normalizeName(d.name))),
     [canonical],
   );
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const res = await refreshRoster();
+      setLastRefresh(new Date(res.fetchedAt));
+      setVersion((v) => v + 1);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!lastRefresh) setLastRefresh(new Date());
+  }, [lastRefresh]);
 
   const report = useMemo(() => {
     const perSource: Record<
@@ -181,13 +210,42 @@ function DataPage() {
       </header>
 
       <main className="mx-auto max-w-[1400px] px-8 py-10">
-        <div className="mb-8">
-          <h1 className="text-[28px] font-semibold tracking-tight">
-            Data validation & mapping
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Reconcile dealership names across CRM, DMS, and media buy exports.
-          </p>
+        <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-[28px] font-semibold tracking-tight">
+              Data validation & mapping
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Reconcile dealership names across CRM, DMS, and media buy exports.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="text-right text-xs text-muted-foreground">
+              <div>
+                Roster: <span className="font-medium text-foreground">{canonical.length}</span>{" "}
+                dealerships
+              </div>
+              <div>
+                {lastRefresh
+                  ? `Refreshed ${lastRefresh.toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}`
+                  : "Not refreshed yet"}
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onRefresh}
+              disabled={refreshing}
+            >
+              <RefreshCw
+                className={cn("mr-1.5 h-3.5 w-3.5", refreshing && "animate-spin")}
+              />
+              {refreshing ? "Refreshing…" : "Refresh roster"}
+            </Button>
+          </div>
         </div>
 
         <section className="mb-8 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-border/60 bg-border/60 md:grid-cols-4">
@@ -220,11 +278,16 @@ function DataPage() {
         <Tabs defaultValue="validation">
           <TabsList className="mb-6">
             <TabsTrigger value="validation">Validation</TabsTrigger>
+            <TabsTrigger value="coverage">Coverage</TabsTrigger>
             <TabsTrigger value="mapping">Mapping editor</TabsTrigger>
           </TabsList>
 
           <TabsContent value="validation">
             <ValidationView issues={report.issues} />
+          </TabsContent>
+
+          <TabsContent value="coverage">
+            <CoverageView canonical={canonical} mapping={mapping} />
           </TabsContent>
 
           <TabsContent value="mapping">
@@ -863,3 +926,226 @@ function IssueList({
     </div>
   );
 }
+
+/* ---------------- Coverage ---------------- */
+
+function CoverageView({
+  canonical,
+  mapping,
+}: {
+  canonical: DealershipMetrics[];
+  mapping: Record<string, string>;
+}) {
+  const rows = useMemo(() => {
+    // Where does each canonical dealership appear across sources?
+    const presence = new Map<string, Set<SourceKey>>();
+    for (const d of canonical) presence.set(normalizeName(d.name), new Set());
+    for (const src of SOURCES) {
+      for (const r of src.rows) {
+        const key = normalizeName(resolveName(r.name, mapping));
+        presence.get(key)?.add(src.key);
+      }
+    }
+    return canonical.map((d) => {
+      const key = normalizeName(d.name);
+      const seenIn = presence.get(key) ?? new Set<SourceKey>();
+      const placeholder = !hasRealMetrics(d.id);
+      return {
+        d,
+        seenIn,
+        mapped: seenIn.size > 0,
+        placeholder,
+      };
+    });
+  }, [canonical, mapping]);
+
+  const mapped = rows.filter((r) => r.mapped).length;
+  const unmatched = rows.length - mapped;
+  const placeholders = rows.filter((r) => r.placeholder).length;
+  const real = rows.length - placeholders;
+  const mappedPct = rows.length ? Math.round((mapped / rows.length) * 100) : 0;
+  const realPct = rows.length ? Math.round((real / rows.length) * 100) : 0;
+
+  const [filter, setFilter] = useState<
+    "all" | "unmatched" | "placeholder" | "verified"
+  >("all");
+  const [q, setQ] = useState("");
+
+  const filtered = rows.filter((r) => {
+    if (filter === "unmatched" && r.mapped) return false;
+    if (filter === "placeholder" && !r.placeholder) return false;
+    if (filter === "verified" && (r.placeholder || !r.mapped)) return false;
+    if (q && !r.d.name.toLowerCase().includes(q.toLowerCase())) return false;
+    return true;
+  });
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <CoverageCard
+          title="Roster coverage"
+          primary={`${mapped}/${ROSTER_SIZE}`}
+          secondary={`${mappedPct}% present in at least one source`}
+          pct={mappedPct}
+          tone={unmatched === 0 ? "ok" : "warn"}
+          footer={
+            unmatched > 0
+              ? `${unmatched} dealership${unmatched === 1 ? "" : "s"} unmatched`
+              : "All dealerships accounted for"
+          }
+        />
+        <CoverageCard
+          title="Verified metrics"
+          primary={`${real}/${ROSTER_SIZE}`}
+          secondary={`${realPct}% backed by Tableau-sourced numbers`}
+          pct={realPct}
+          tone={placeholders > 0 ? "warn" : "ok"}
+          footer={
+            placeholders > 0
+              ? `${placeholders} store${placeholders === 1 ? "" : "s"} using placeholder metrics`
+              : "No placeholder metrics"
+          }
+        />
+        <CoverageCard
+          title="Active aliases"
+          primary={Object.keys(mapping).length.toString()}
+          secondary="Source names remapped to canonical"
+          pct={Math.min(100, Object.keys(mapping).length * 8)}
+          tone="neutral"
+          footer="Managed in the Mapping editor"
+        />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search dealership"
+            className="h-9 w-[240px] border-border/60 pl-8 text-sm"
+          />
+        </div>
+        <Select value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
+          <SelectTrigger className="h-9 w-[200px] border-border/60 text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All dealerships</SelectItem>
+            <SelectItem value="unmatched">Unmatched only</SelectItem>
+            <SelectItem value="placeholder">Placeholder metrics</SelectItem>
+            <SelectItem value="verified">Verified only</SelectItem>
+          </SelectContent>
+        </Select>
+        <span className="ml-auto text-xs text-muted-foreground">
+          {filtered.length} of {rows.length}
+        </span>
+      </div>
+
+      <div className="overflow-hidden rounded-2xl border border-border/60">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border/60 bg-muted/30 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+              <th className="px-4 py-3 font-medium">Dealership</th>
+              <th className="px-4 py-3 font-medium">Region</th>
+              <th className="px-4 py-3 font-medium">Metrics</th>
+              <th className="px-4 py-3 font-medium">Present in</th>
+              <th className="px-4 py-3 text-right font-medium">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map(({ d, seenIn, mapped, placeholder }) => (
+              <tr
+                key={d.id}
+                className="border-b border-border/40 last:border-0"
+              >
+                <td className="px-4 py-3 font-medium">{d.name}</td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {d.region} · {d.brand}
+                </td>
+                <td className="px-4 py-3">
+                  {placeholder ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-inset ring-amber-200">
+                      Placeholder
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                      Verified
+                    </span>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap gap-1">
+                    {SOURCES.map((s) => {
+                      const on = seenIn.has(s.key);
+                      return (
+                        <span
+                          key={s.key}
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-[10px] ring-1 ring-inset",
+                            on
+                              ? "bg-foreground/5 text-foreground ring-border"
+                              : "bg-muted/40 text-muted-foreground/60 ring-transparent line-through",
+                          )}
+                        >
+                          {s.label.split(" ")[0]}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-right">
+                  {mapped ? (
+                    <span className="text-xs text-emerald-700">Mapped</span>
+                  ) : (
+                    <span className="text-xs text-rose-700">Unmatched</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function CoverageCard({
+  title,
+  primary,
+  secondary,
+  footer,
+  pct,
+  tone,
+}: {
+  title: string;
+  primary: string;
+  secondary: string;
+  footer: string;
+  pct: number;
+  tone: "ok" | "warn" | "neutral";
+}) {
+  const bar =
+    tone === "warn"
+      ? "bg-amber-500"
+      : tone === "ok"
+      ? "bg-emerald-500"
+      : "bg-foreground/70";
+  return (
+    <div className="rounded-2xl border border-border/60 bg-card p-5">
+      <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+        {title}
+      </div>
+      <div className="mt-2 text-2xl font-semibold tracking-tight">{primary}</div>
+      <div className="mt-1 text-xs text-muted-foreground">{secondary}</div>
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
+        <div
+          className={cn("h-full rounded-full transition-all", bar)}
+          style={{ width: `${Math.max(2, Math.min(100, pct))}%` }}
+        />
+      </div>
+      <div className="mt-2 text-[11px] text-muted-foreground">{footer}</div>
+    </div>
+  );
+}
+
