@@ -1,6 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { computeMetrics } from "@/lib/dealerships";
+import { useEffect, useMemo, useState } from "react";
+import {
+  computeMetrics,
+  hasRealMetrics,
+  refreshRoster,
+  ROSTER_SIZE,
+  type DealershipMetrics,
+} from "@/lib/dealerships";
 import { SOURCES, type SourceKey } from "@/lib/sources";
 import {
   normalizeName,
@@ -26,6 +32,7 @@ import {
   CheckCircle2,
   Copy,
   Link2Off,
+  RefreshCw,
   Search,
   Trash2,
   Upload,
