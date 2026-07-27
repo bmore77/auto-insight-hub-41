@@ -326,43 +326,66 @@ function IssueRow({ issue }: { issue: Issue }) {
   const [, actions] = useMapping();
   const [pick, setPick] = useState<string>("");
   const showRemap = issue.kind === "unmatched";
+  const suggestions = useMemo(
+    () => (showRemap ? fuzzySuggest(issue.name, canonical, 3) : []),
+    [showRemap, issue.name, canonical],
+  );
 
   return (
     <tr className="border-b border-border/40 last:border-0">
-      <td className="px-4 py-3">
+      <td className="px-4 py-3 align-top">
         <IssueBadge kind={issue.kind} />
       </td>
-      <td className="px-4 py-3 font-medium">{issue.name}</td>
-      <td className="px-4 py-3 text-muted-foreground">
+      <td className="px-4 py-3 align-top font-medium">{issue.name}</td>
+      <td className="px-4 py-3 align-top text-muted-foreground">
         {SOURCES.find((s) => s.key === issue.source)?.label ?? issue.source}
       </td>
-      <td className="px-4 py-3 text-muted-foreground">{issue.detail}</td>
-      <td className="px-4 py-3">
+      <td className="px-4 py-3 align-top text-muted-foreground">{issue.detail}</td>
+      <td className="px-4 py-3 align-top">
         {showRemap ? (
-          <div className="flex items-center justify-end gap-2">
-            <Select value={pick} onValueChange={setPick}>
-              <SelectTrigger className="h-8 w-[220px] border-border/60 text-xs">
-                <SelectValue placeholder="Map to dealership…" />
-              </SelectTrigger>
-              <SelectContent>
-                {canonical.map((n) => (
-                  <SelectItem key={n} value={n}>
-                    {n}
-                  </SelectItem>
+          <div className="flex flex-col items-end gap-2">
+            {suggestions.length > 0 && (
+              <div className="flex flex-wrap justify-end gap-1">
+                {suggestions.map((s) => (
+                  <button
+                    key={s.name}
+                    onClick={() => actions.set(issue.name, s.name)}
+                    title={`${Math.round(s.score * 100)}% match`}
+                    className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background px-2 py-0.5 text-[11px] text-foreground/80 transition-colors hover:bg-muted"
+                  >
+                    <span className="truncate max-w-[180px]">{s.name}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {Math.round(s.score * 100)}%
+                    </span>
+                  </button>
                 ))}
-              </SelectContent>
-            </Select>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!pick}
-              onClick={() => {
-                actions.set(issue.name, pick);
-                setPick("");
-              }}
-            >
-              Map
-            </Button>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <Select value={pick} onValueChange={setPick}>
+                <SelectTrigger className="h-8 w-[220px] border-border/60 text-xs">
+                  <SelectValue placeholder="Map to dealership…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {canonical.map((n) => (
+                    <SelectItem key={n} value={n}>
+                      {n}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!pick}
+                onClick={() => {
+                  actions.set(issue.name, pick);
+                  setPick("");
+                }}
+              >
+                Map
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="text-right text-xs text-muted-foreground">—</div>
