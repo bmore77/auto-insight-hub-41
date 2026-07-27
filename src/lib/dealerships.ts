@@ -30,8 +30,20 @@ export type DealershipMetrics = Dealership & {
   adSpendDelta: number;
   cplDelta: number;
   priorityScore: number;
+  /** 0-100 component sub-scores that combine into priorityScore. */
+  leadsScore: number;
+  salesScore: number;
+  closeScore: number;
+  cplScore: number;
   reasons: string[];
 };
+
+export const PRIORITY_WEIGHTS = {
+  leads: 0.55,
+  sales: 0.2,
+  close: 0.15,
+  cpl: 0.1,
+} as const;
 
 const mkTrend = (prev: number, curr: number): number[] => {
   const out: number[] = [];
