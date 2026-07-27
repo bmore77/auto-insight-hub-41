@@ -291,7 +291,7 @@ function DataPage() {
           </TabsContent>
 
           <TabsContent value="mapping">
-            <MappingEditor version={version} />
+            <MappingEditor />
           </TabsContent>
         </Tabs>
       </main>
