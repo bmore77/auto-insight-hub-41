@@ -1,17 +1,5 @@
 export type Region = "West" | "Prairies" | "Ontario" | "Quebec" | "Atlantic";
-export type Brand =
-  | "Toyota"
-  | "Honda"
-  | "Ford"
-  | "Chevrolet"
-  | "Hyundai"
-  | "Kia"
-  | "Nissan"
-  | "Mazda"
-  | "BMW"
-  | "Audi"
-  | "Volkswagen"
-  | "Subaru";
+export type Brand = string;
 
 export type Dealership = {
   id: string;
@@ -45,23 +33,66 @@ export type DealershipMetrics = Dealership & {
   reasons: string[];
 };
 
+// Build a 12-point trend interpolating prev -> current leads with slight wobble
+const mkTrend = (prev: number, curr: number): number[] => {
+  const out: number[] = [];
+  for (let i = 0; i < 12; i++) {
+    const t = i / 11;
+    const wobble = Math.sin(i * 1.3) * (prev * 0.04);
+    out.push(Math.max(0, Math.round(prev + (curr - prev) * t + wobble)));
+  }
+  return out;
+};
+
+const D = (
+  id: string,
+  name: string,
+  city: string,
+  region: Region,
+  brand: Brand,
+  leads: number,
+  leadsPrev: number,
+  sales: number,
+  salesPrev: number,
+  adSpend: number,
+  adSpendPrev: number,
+): Dealership => ({
+  id, name, city, region, brand,
+  leads, leadsPrev, sales, salesPrev, adSpend, adSpendPrev,
+  trend: mkTrend(leadsPrev, leads),
+});
+
 const RAW: Dealership[] = [
-  { id: "d1", name: "Auto Canada Vancouver", city: "Vancouver", region: "West", brand: "Toyota", leads: 412, leadsPrev: 578, sales: 74, salesPrev: 112, adSpend: 82000, adSpendPrev: 71000, trend: [58,54,52,49,46,44,40,38,36,34,33,31] },
-  { id: "d2", name: "Auto Canada Calgary North", city: "Calgary", region: "Prairies", brand: "Ford", leads: 356, leadsPrev: 402, sales: 68, salesPrev: 82, adSpend: 61000, adSpendPrev: 58000, trend: [40,39,38,36,35,34,33,32,31,30,29,28] },
-  { id: "d3", name: "Auto Canada Edmonton West", city: "Edmonton", region: "Prairies", brand: "Chevrolet", leads: 289, leadsPrev: 421, sales: 41, salesPrev: 74, adSpend: 74000, adSpendPrev: 68000, trend: [42,40,38,36,34,32,30,28,26,25,24,23] },
-  { id: "d4", name: "Auto Canada Mississauga", city: "Mississauga", region: "Ontario", brand: "Honda", leads: 498, leadsPrev: 512, sales: 96, salesPrev: 94, adSpend: 68000, adSpendPrev: 69500, trend: [50,51,50,52,49,51,50,49,50,51,52,50] },
-  { id: "d5", name: "Auto Canada Ottawa", city: "Ottawa", region: "Ontario", brand: "Hyundai", leads: 322, leadsPrev: 348, sales: 58, salesPrev: 61, adSpend: 44000, adSpendPrev: 46000, trend: [36,35,35,34,33,33,32,32,31,31,30,30] },
-  { id: "d6", name: "Auto Canada Toronto East", city: "Toronto", region: "Ontario", brand: "Kia", leads: 275, leadsPrev: 391, sales: 44, salesPrev: 72, adSpend: 59000, adSpendPrev: 52000, trend: [40,38,36,34,32,31,29,28,27,26,25,24] },
-  { id: "d7", name: "Auto Canada Montreal", city: "Montreal", region: "Quebec", brand: "Nissan", leads: 384, leadsPrev: 372, sales: 72, salesPrev: 68, adSpend: 51000, adSpendPrev: 49500, trend: [38,38,39,39,40,40,41,41,41,42,42,42] },
-  { id: "d8", name: "Auto Canada Quebec City", city: "Quebec City", region: "Quebec", brand: "Mazda", leads: 218, leadsPrev: 296, sales: 38, salesPrev: 56, adSpend: 38000, adSpendPrev: 34000, trend: [30,29,28,27,26,25,24,23,22,22,21,21] },
-  { id: "d9", name: "Auto Canada Halifax", city: "Halifax", region: "Atlantic", brand: "Subaru", leads: 189, leadsPrev: 211, sales: 34, salesPrev: 39, adSpend: 29000, adSpendPrev: 27500, trend: [22,21,21,20,20,19,19,19,18,18,18,17] },
-  { id: "d10", name: "Auto Canada Victoria", city: "Victoria", region: "West", brand: "BMW", leads: 156, leadsPrev: 168, sales: 32, salesPrev: 33, adSpend: 41000, adSpendPrev: 39000, trend: [17,17,16,16,16,15,15,15,15,15,14,14] },
-  { id: "d11", name: "Auto Canada Winnipeg", city: "Winnipeg", region: "Prairies", brand: "Volkswagen", leads: 241, leadsPrev: 268, sales: 42, salesPrev: 49, adSpend: 36000, adSpendPrev: 35000, trend: [28,27,26,26,25,25,24,24,23,23,22,22] },
-  { id: "d12", name: "Auto Canada Saskatoon", city: "Saskatoon", region: "Prairies", brand: "Toyota", leads: 198, leadsPrev: 224, sales: 39, salesPrev: 44, adSpend: 32000, adSpendPrev: 31000, trend: [23,23,22,22,21,21,20,20,20,19,19,19] },
-  { id: "d13", name: "Auto Canada London", city: "London", region: "Ontario", brand: "Audi", leads: 172, leadsPrev: 234, sales: 28, salesPrev: 46, adSpend: 47000, adSpendPrev: 42000, trend: [25,24,23,22,21,20,19,19,18,17,17,16] },
-  { id: "d14", name: "Auto Canada Hamilton", city: "Hamilton", region: "Ontario", brand: "Ford", leads: 267, leadsPrev: 259, sales: 51, salesPrev: 48, adSpend: 42000, adSpendPrev: 41500, trend: [26,26,27,27,27,28,28,28,29,29,29,30] },
-  { id: "d15", name: "Auto Canada Kelowna", city: "Kelowna", region: "West", brand: "Honda", leads: 148, leadsPrev: 152, sales: 29, salesPrev: 30, adSpend: 26000, adSpendPrev: 25500, trend: [16,16,16,15,15,16,16,16,15,15,16,16] },
-  { id: "d16", name: "Auto Canada St. John's", city: "St. John's", region: "Atlantic", brand: "Nissan", leads: 132, leadsPrev: 178, sales: 22, salesPrev: 33, adSpend: 24000, adSpendPrev: 22000, trend: [19,18,18,17,16,15,15,14,14,13,13,12] },
+  D("d1",  "Parkland Dodge",            "Spruce Grove",   "Prairies", "Dodge",       649, 363, 42, 38, 78000, 52000),
+  D("d2",  "Acura of Hamilton",         "Hamilton",       "Ontario",  "Acura",       190, 146, 24, 18, 34000, 28000),
+  D("d3",  "Porsche Centre London",     "London",         "Ontario",  "Porsche",     133, 109, 15, 13, 41000, 36000),
+  D("d4",  "Dodge City Motors",         "Saskatoon",      "Prairies", "Dodge",       500, 412, 72, 62, 58000, 52000),
+  D("d5",  "Tower Chrysler Dodge Jeep", "Calgary",        "Prairies", "Chrysler",    354, 293, 55, 48, 46000, 41000),
+  D("d6",  "Courtesy Chrysler",         "Calgary",        "Prairies", "Chrysler",    381, 318, 53, 45, 44000, 39000),
+  D("d7",  "Audi Windsor",              "Windsor",        "Ontario",  "Audi",        267, 225, 44, 35, 52000, 46000),
+  D("d8",  "Hyatt Infiniti",            "Calgary",        "Prairies", "Infiniti",    297, 253, 52, 44, 48000, 42000),
+  D("d9",  "Maple Ridge Volkswagen",    "Maple Ridge",    "West",     "Volkswagen",  528, 451, 82, 55, 64000, 58000),
+  D("d10", "Cambridge Hyundai",         "Cambridge",      "Ontario",  "Hyundai",     503, 430, 65, 56, 51000, 45000),
+  D("d11", "Planete Mazda",             "Mirabel",        "Quebec",   "Mazda",       387, 334, 95, 67, 42000, 38000),
+  D("d12", "Plaza Nissan",              "Hamilton",       "Ontario",  "Nissan",      673, 592, 73, 80, 68000, 62000),
+  D("d13", "Rose City Ford",            "Welland",        "Ontario",  "Ford",        746, 682,132,142, 82000, 76000),
+  D("d14", "Northland Volkswagen",      "Calgary",        "Prairies", "Volkswagen",  739, 686,107, 64, 74000, 68000),
+  D("d15", "401 Dixie Hyundai",         "Mississauga",    "Ontario",  "Hyundai",     412, 388, 35, 40, 46000, 43000),
+  D("d16", "London Honda",              "London",         "Ontario",  "Honda",       358, 342, 71, 64, 40000, 38000),
+  D("d17", "Sherwood Park Volkswagen",  "Sherwood Park",  "Prairies", "Volkswagen",  221, 210, 49, 45, 32000, 30000),
+  D("d18", "BMW Montreal Centre",       "Montreal",       "Quebec",   "BMW",         263, 248, 38, 34, 54000, 50000),
+  D("d19", "McNaught Cadillac Buick",   "Winnipeg",       "Prairies", "Cadillac",    198, 211, 37, 48, 44000, 41000),
+  D("d20", "St. James Volkswagen",      "Winnipeg",       "Prairies", "Volkswagen",  791, 805,144,107, 68000, 66000),
+  D("d21", "Moncton Chrysler",          "Moncton",        "Atlantic", "Chrysler",    301, 293, 40, 41, 36000, 35000),
+  D("d22", "Waterloo Honda",            "Waterloo",       "Ontario",  "Honda",       321, 312, 59, 82, 42000, 40000),
+  D("d23", "BMW Laval",                 "Laval",          "Quebec",   "BMW",         242, 232, 47, 58, 56000, 52000),
+  D("d24", "Crosstown Auto Centre",     "Winnipeg",       "Prairies", "Chrysler",    655, 771,165,141, 71000, 74000),
+  D("d25", "Mann-Northway Auto",        "Prince Albert",  "Prairies", "Toyota",      213, 222, 30, 44, 34000, 33000),
+  D("d26", "Crowfoot Hyundai",          "Calgary",        "Prairies", "Hyundai",     260, 247, 45, 40, 38000, 36000),
+  D("d27", "Guelph Kia",                "Guelph",         "Ontario",  "Kia",         418, 402, 73, 62, 44000, 42000),
+  D("d28", "Fish Creek Nissan",         "Calgary",        "Prairies", "Nissan",      467, 452, 80, 68, 48000, 46000),
+  D("d29", "Grande Prairie Subaru",     "Grande Prairie", "Prairies", "Subaru",      288, 181, 46, 29, 32000, 24000),
+  D("d30", "Wellington Motors",         "Guelph",         "Ontario",  "Chrysler",    312, 305, 55, 43, 38000, 36000),
 ];
 
 const pctDelta = (curr: number, prev: number) => (prev === 0 ? 0 : (curr - prev) / prev);
