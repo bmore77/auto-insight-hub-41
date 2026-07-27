@@ -24,16 +24,15 @@ export type DealershipMetrics = Dealership & {
   cplPrev: number;
   cps: number;
   cpsPrev: number;
-  leadsDelta: number; // pct
+  leadsDelta: number;
   salesDelta: number;
-  closeRateDelta: number; // pt (absolute)
+  closeRateDelta: number;
   adSpendDelta: number;
   cplDelta: number;
-  priorityScore: number; // 0-100
+  priorityScore: number;
   reasons: string[];
 };
 
-// Build a 12-point trend interpolating prev -> current leads with slight wobble
 const mkTrend = (prev: number, curr: number): number[] => {
   const out: number[] = [];
   for (let i = 0; i < 12; i++) {
@@ -44,56 +43,147 @@ const mkTrend = (prev: number, curr: number): number[] => {
   return out;
 };
 
-const D = (
-  id: string,
-  name: string,
-  city: string,
-  region: Region,
-  brand: Brand,
-  leads: number,
-  leadsPrev: number,
-  sales: number,
-  salesPrev: number,
-  adSpend: number,
-  adSpendPrev: number,
-): Dealership => ({
-  id, name, city, region, brand,
-  leads, leadsPrev, sales, salesPrev, adSpend, adSpendPrev,
-  trend: mkTrend(leadsPrev, leads),
-});
+// Deterministic pseudo-random 0..1 from a string seed.
+const rand = (seed: string, salt: number) => {
+  let h = 2166136261 ^ salt;
+  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 16777619);
+  return ((h >>> 0) % 10000) / 10000;
+};
 
-const RAW: Dealership[] = [
-  D("d1",  "Parkland Dodge",            "Spruce Grove",   "Prairies", "Dodge",       649, 363, 42, 38, 78000, 52000),
-  D("d2",  "Acura of Hamilton",         "Hamilton",       "Ontario",  "Acura",       190, 146, 24, 18, 34000, 28000),
-  D("d3",  "Porsche Centre London",     "London",         "Ontario",  "Porsche",     133, 109, 15, 13, 41000, 36000),
-  D("d4",  "Dodge City Motors",         "Saskatoon",      "Prairies", "Dodge",       500, 412, 72, 62, 58000, 52000),
-  D("d5",  "Tower Chrysler Dodge Jeep", "Calgary",        "Prairies", "Chrysler",    354, 293, 55, 48, 46000, 41000),
-  D("d6",  "Courtesy Chrysler",         "Calgary",        "Prairies", "Chrysler",    381, 318, 53, 45, 44000, 39000),
-  D("d7",  "Audi Windsor",              "Windsor",        "Ontario",  "Audi",        267, 225, 44, 35, 52000, 46000),
-  D("d8",  "Hyatt Infiniti",            "Calgary",        "Prairies", "Infiniti",    297, 253, 52, 44, 48000, 42000),
-  D("d9",  "Maple Ridge Volkswagen",    "Maple Ridge",    "West",     "Volkswagen",  528, 451, 82, 55, 64000, 58000),
-  D("d10", "Cambridge Hyundai",         "Cambridge",      "Ontario",  "Hyundai",     503, 430, 65, 56, 51000, 45000),
-  D("d11", "Planete Mazda",             "Mirabel",        "Quebec",   "Mazda",       387, 334, 95, 67, 42000, 38000),
-  D("d12", "Plaza Nissan",              "Hamilton",       "Ontario",  "Nissan",      673, 592, 73, 80, 68000, 62000),
-  D("d13", "Rose City Ford",            "Welland",        "Ontario",  "Ford",        746, 682,132,142, 82000, 76000),
-  D("d14", "Northland Volkswagen",      "Calgary",        "Prairies", "Volkswagen",  739, 686,107, 64, 74000, 68000),
-  D("d15", "401 Dixie Hyundai",         "Mississauga",    "Ontario",  "Hyundai",     412, 388, 35, 40, 46000, 43000),
-  D("d16", "London Honda",              "London",         "Ontario",  "Honda",       358, 342, 71, 64, 40000, 38000),
-  D("d17", "Sherwood Park Volkswagen",  "Sherwood Park",  "Prairies", "Volkswagen",  221, 210, 49, 45, 32000, 30000),
-  D("d18", "BMW Montreal Centre",       "Montreal",       "Quebec",   "BMW",         263, 248, 38, 34, 54000, 50000),
-  D("d19", "McNaught Cadillac Buick",   "Winnipeg",       "Prairies", "Cadillac",    198, 211, 37, 48, 44000, 41000),
-  D("d20", "St. James Volkswagen",      "Winnipeg",       "Prairies", "Volkswagen",  791, 805,144,107, 68000, 66000),
-  D("d21", "Moncton Chrysler",          "Moncton",        "Atlantic", "Chrysler",    301, 293, 40, 41, 36000, 35000),
-  D("d22", "Waterloo Honda",            "Waterloo",       "Ontario",  "Honda",       321, 312, 59, 82, 42000, 40000),
-  D("d23", "BMW Laval",                 "Laval",          "Quebec",   "BMW",         242, 232, 47, 58, 56000, 52000),
-  D("d24", "Crosstown Auto Centre",     "Winnipeg",       "Prairies", "Chrysler",    655, 771,165,141, 71000, 74000),
-  D("d25", "Mann-Northway Auto",        "Prince Albert",  "Prairies", "Toyota",      213, 222, 30, 44, 34000, 33000),
-  D("d26", "Crowfoot Hyundai",          "Calgary",        "Prairies", "Hyundai",     260, 247, 45, 40, 38000, 36000),
-  D("d27", "Guelph Kia",                "Guelph",         "Ontario",  "Kia",         418, 402, 73, 62, 44000, 42000),
-  D("d28", "Fish Creek Nissan",         "Calgary",        "Prairies", "Nissan",      467, 452, 80, 68, 48000, 46000),
-  D("d29", "Grande Prairie Subaru",     "Grande Prairie", "Prairies", "Subaru",      288, 181, 46, 29, 32000, 24000),
-  D("d30", "Wellington Motors",         "Guelph",         "Ontario",  "Chrysler",    312, 305, 55, 43, 38000, 36000),
+type Meta = { id: string; name: string; city: string; region: Region; brand: Brand };
+
+// Full AutoCanada roster (autocan.ca/dealerships).
+const META: Meta[] = [
+  { id: "d401dixie",   name: "401 Dixie Hyundai",              city: "Mississauga",   region: "Ontario",  brand: "Hyundai" },
+  { id: "d417nissan",  name: "417 Nissan",                     city: "Ottawa",        region: "Ontario",  brand: "Nissan" },
+  { id: "dabbvw",      name: "Abbotsford VW",                  city: "Abbotsford",    region: "West",     brand: "Volkswagen" },
+  { id: "dacurahm",    name: "Acura of Hamilton",              city: "Hamilton",      region: "Ontario",  brand: "Acura" },
+  { id: "daudiwin",    name: "Audi Windsor",                   city: "Windsor",       region: "Ontario",  brand: "Audi" },
+  { id: "daudiwpg",    name: "Audi Winnipeg",                  city: "Winnipeg",      region: "Prairies", brand: "Audi" },
+  { id: "dbmwmtl",     name: "BMW Montréal Centre",            city: "Montréal",      region: "Quebec",   brand: "BMW" },
+  { id: "dbmwlaval",   name: "BMW Laval",                      city: "Laval",         region: "Quebec",   brand: "BMW" },
+  { id: "dbranthonda", name: "Brantford Honda",                city: "Brantford",     region: "Ontario",  brand: "Honda" },
+  { id: "dsterhonda",  name: "Sterling Honda",                 city: "Hamilton",      region: "Ontario",  brand: "Honda" },
+  { id: "dbridgesgm",  name: "Bridges GM",                     city: "North Battleford", region: "Prairies", brand: "GM" },
+  { id: "dmrgm",       name: "Maple Ridge GM",                 city: "Pitt Meadows",  region: "West",     brand: "GM" },
+  { id: "dcambhy",     name: "Cambridge Hyundai",              city: "Cambridge",     region: "Ontario",  brand: "Hyundai" },
+  { id: "dcapdodge",   name: "Capital Dodge Chrysler Jeep RAM", city: "Edmonton",     region: "Prairies", brand: "Chrysler" },
+  { id: "dchillvw",    name: "Chilliwack VW",                  city: "Chilliwack",    region: "West",     brand: "Volkswagen" },
+  { id: "dcourtesy",   name: "Courtesy Chrysler Dodge Jeep RAM", city: "Calgary",     region: "Prairies", brand: "Chrysler" },
+  { id: "dcrosstown",  name: "Crosstown Auto Centre",          city: "Edmonton",      region: "Prairies", brand: "Chrysler" },
+  { id: "dcrowhy",     name: "Crowfoot Hyundai",               city: "Calgary",       region: "Prairies", brand: "Hyundai" },
+  { id: "ddartcdj",    name: "Dartmouth Chrysler Jeep Dodge",  city: "Dartmouth",     region: "Atlantic", brand: "Chrysler" },
+  { id: "ddodgecity",  name: "Dodge City Motors",              city: "Saskatoon",     region: "Prairies", brand: "Dodge" },
+  { id: "deastcdj",    name: "Eastern Chrysler Dodge Jeep RAM", city: "Winnipeg",     region: "Prairies", brand: "Chrysler" },
+  { id: "dfishcreek",  name: "Fish Creek Nissan",              city: "Calgary",       region: "Prairies", brand: "Nissan" },
+  { id: "dgpcdj",      name: "Grande Prairie Chrysler Jeep Dodge", city: "Grande Prairie", region: "Prairies", brand: "Chrysler" },
+  { id: "dgphy",       name: "Grande Prairie Hyundai",         city: "Grande Prairie", region: "Prairies", brand: "Hyundai" },
+  { id: "dgpnissan",   name: "Grande Prairie Nissan",          city: "Grande Prairie", region: "Prairies", brand: "Nissan" },
+  { id: "dgpsubaru",   name: "Grande Prairie Subaru",          city: "Grande Prairie", region: "Prairies", brand: "Subaru" },
+  { id: "dgpvw",       name: "Grande Prairie VW",              city: "Grande Prairie", region: "Prairies", brand: "Volkswagen" },
+  { id: "dguelphhy",   name: "Guelph Hyundai",                 city: "Guelph",        region: "Ontario",  brand: "Hyundai" },
+  { id: "dguelphkia",  name: "Guelph KIA",                     city: "Guelph",        region: "Ontario",  brand: "Kia" },
+  { id: "dhuntclub",   name: "Hunt Club Nissan",               city: "Ottawa",        region: "Ontario",  brand: "Nissan" },
+  { id: "dhyattinf",   name: "Hyatt INFINITI",                 city: "Calgary",       region: "Prairies", brand: "Infiniti" },
+  { id: "dislandgm",   name: "Island GM",                      city: "Duncan",        region: "West",     brand: "GM" },
+  { id: "dkiahm",      name: "KIA of Hamilton",                city: "Hamilton",      region: "Ontario",  brand: "Kia" },
+  { id: "dlondonhonda", name: "London Honda",                  city: "London",        region: "Ontario",  brand: "Honda" },
+  { id: "dlondoninf",  name: "London INFINITI",                city: "London",        region: "Ontario",  brand: "Infiniti" },
+  { id: "dlondonkia",  name: "London KIA",                     city: "London",        region: "Ontario",  brand: "Kia" },
+  { id: "dmannnw",     name: "Mann Northway",                  city: "Prince Albert", region: "Prairies", brand: "GM" },
+  { id: "dmrcdj",      name: "Maple Ridge Chrysler Jeep Dodge", city: "Maple Ridge",  region: "West",     brand: "Chrysler" },
+  { id: "dmrvw",       name: "Maple Ridge VW",                 city: "Maple Ridge",   region: "West",     brand: "Volkswagen" },
+  { id: "dmcngmc",     name: "McNaught Buick GMC",             city: "Winnipeg",      region: "Prairies", brand: "GMC" },
+  { id: "dmcncad",     name: "McNaught Cadillac",              city: "Winnipeg",      region: "Prairies", brand: "Cadillac" },
+  { id: "dnursechev",  name: "Nurse Chevrolet",                city: "Whitby",        region: "Ontario",  brand: "Chevrolet" },
+  { id: "dnursecad",   name: "Nurse Cadillac",                 city: "Whitby",        region: "Ontario",  brand: "Cadillac" },
+  { id: "dpremchev",   name: "Premier Chevrolet",              city: "Windsor",       region: "Ontario",  brand: "Chevrolet" },
+  { id: "dpremcad",    name: "Premier Cadillac",               city: "Windsor",       region: "Ontario",  brand: "Cadillac" },
+  { id: "dmbhv",       name: "Mercedes-Benz Heritage Valley",  city: "Edmonton",      region: "Prairies", brand: "Mercedes-Benz" },
+  { id: "dmbrs",       name: "Mercedes-Benz Rive-Sud",         city: "Greenfield Park", region: "Quebec", brand: "Mercedes-Benz" },
+  { id: "dminilaval",  name: "MINI Laval",                     city: "Laval",         region: "Quebec",   brand: "Mini" },
+  { id: "dminimtl",    name: "MINI Montreal Centre",           city: "Montréal",      region: "Quebec",   brand: "Mini" },
+  { id: "dmoncton",    name: "Moncton Chrysler Jeep Dodge",    city: "Moncton",       region: "Atlantic", brand: "Chrysler" },
+  { id: "dnlcdj",      name: "Northland Chrysler Jeep Dodge",  city: "Prince George", region: "West",     brand: "Chrysler" },
+  { id: "dnlhy",       name: "Northland Hyundai",              city: "Prince George", region: "West",     brand: "Hyundai" },
+  { id: "dnlnissan",   name: "Northland Nissan",               city: "Prince George", region: "West",     brand: "Nissan" },
+  { id: "dnlvw",       name: "Northland VW",                   city: "Calgary",       region: "Prairies", brand: "Volkswagen" },
+  { id: "dparkland",   name: "Parkland Dodge",                 city: "Spruce Grove",  region: "Prairies", brand: "Dodge" },
+  { id: "dplanete",    name: "Planète Mazda",                  city: "Mirabel",       region: "Quebec",   brand: "Mazda" },
+  { id: "dplaza",      name: "Plaza Nissan",                   city: "Hamilton",      region: "Ontario",  brand: "Nissan" },
+  { id: "dlondporsche", name: "London Porsche",                city: "London",        region: "Ontario",  brand: "Porsche" },
+  { id: "drosecity",   name: "Rose City Ford",                 city: "Windsor",       region: "Ontario",  brand: "Ford" },
+  { id: "dkelleher",   name: "Kelleher Ford",                  city: "Brandon",       region: "Prairies", brand: "Ford" },
+  { id: "dsmp",        name: "Saskatoon Motor Products",       city: "Saskatoon",     region: "Prairies", brand: "Chevrolet" },
+  { id: "dsphy",       name: "Sherwood Park Hyundai",          city: "Sherwood Park", region: "Prairies", brand: "Hyundai" },
+  { id: "dspvw",       name: "Sherwood Park Volkswagen",       city: "Sherwood Park", region: "Prairies", brand: "Volkswagen" },
+  { id: "dslnissan",   name: "South London Nissan",            city: "London",        region: "Ontario",  brand: "Nissan" },
+  { id: "dsjvw",       name: "St. James Volkswagen",           city: "Winnipeg",      region: "Prairies", brand: "Volkswagen" },
+  { id: "dsubaruhm",   name: "Subaru of Hamilton",             city: "Hamilton",      region: "Ontario",  brand: "Subaru" },
+  { id: "dtower",      name: "Tower Chrysler Dodge Jeep RAM",  city: "Calgary",       region: "Prairies", brand: "Chrysler" },
+  { id: "dwaterloo",   name: "Waterloo Honda",                 city: "Waterloo",      region: "Ontario",  brand: "Honda" },
+  { id: "dwellington", name: "Wellington Motors",              city: "Guelph",        region: "Ontario",  brand: "Chrysler" },
 ];
+
+// Metrics captured from the Tableau screenshots for these stores. Everything
+// else is generated deterministically so the whole 69-store roster renders.
+type MetricTuple = [number, number, number, number, number, number];
+const OVERRIDES: Record<string, MetricTuple> = {
+  dparkland:    [649, 363, 42, 38, 78000, 52000],
+  dacurahm:     [190, 146, 24, 18, 34000, 28000],
+  dlondporsche: [133, 109, 15, 13, 41000, 36000],
+  ddodgecity:   [500, 412, 72, 62, 58000, 52000],
+  dtower:       [354, 293, 55, 48, 46000, 41000],
+  dcourtesy:    [381, 318, 53, 45, 44000, 39000],
+  daudiwin:     [267, 225, 44, 35, 52000, 46000],
+  dhyattinf:    [297, 253, 52, 44, 48000, 42000],
+  dmrvw:        [528, 451, 82, 55, 64000, 58000],
+  dcambhy:      [503, 430, 65, 56, 51000, 45000],
+  dplanete:     [387, 334, 95, 67, 42000, 38000],
+  dplaza:       [673, 592, 73, 80, 68000, 62000],
+  drosecity:    [746, 682, 132, 142, 82000, 76000],
+  dnlvw:        [739, 686, 107, 64, 74000, 68000],
+  d401dixie:    [412, 388, 35, 40, 46000, 43000],
+  dlondonhonda: [358, 342, 71, 64, 40000, 38000],
+  dspvw:        [221, 210, 49, 45, 32000, 30000],
+  dbmwmtl:      [263, 248, 38, 34, 54000, 50000],
+  dmcncad:      [198, 211, 37, 48, 44000, 41000],
+  dsjvw:        [791, 805, 144, 107, 68000, 66000],
+  dmoncton:     [301, 293, 40, 41, 36000, 35000],
+  dwaterloo:    [321, 312, 59, 82, 42000, 40000],
+  dbmwlaval:    [242, 232, 47, 58, 56000, 52000],
+  dcrosstown:   [655, 771, 165, 141, 71000, 74000],
+  dmannnw:      [213, 222, 30, 44, 34000, 33000],
+  dcrowhy:      [260, 247, 45, 40, 38000, 36000],
+  dguelphkia:   [418, 402, 73, 62, 44000, 42000],
+  dfishcreek:   [467, 452, 80, 68, 48000, 46000],
+  dgpsubaru:    [288, 181, 46, 29, 32000, 24000],
+  dwellington:  [312, 305, 55, 43, 38000, 36000],
+};
+
+const gen = (id: string): MetricTuple => {
+  const leadsPrev = 140 + Math.floor(rand(id, 1) * 620);
+  const leadsDelta = (rand(id, 2) - 0.5) * 0.5; // -25%..+25%
+  const leads = Math.max(30, Math.round(leadsPrev * (1 + leadsDelta)));
+  const closeRate = 0.10 + rand(id, 3) * 0.15; // 10-25%
+  const salesPrev = Math.max(4, Math.round(leadsPrev * closeRate));
+  const closeShift = (rand(id, 4) - 0.5) * 0.08;
+  const sales = Math.max(3, Math.round(leads * (closeRate + closeShift)));
+  const cpl = 90 + rand(id, 5) * 160;
+  const adSpendPrev = Math.round(leadsPrev * cpl);
+  const adSpend = Math.round(leads * cpl * (1 + (rand(id, 6) - 0.4) * 0.3));
+  return [leads, leadsPrev, sales, salesPrev, adSpend, adSpendPrev];
+};
+
+const RAW: Dealership[] = META.map((m) => {
+  const [leads, leadsPrev, sales, salesPrev, adSpend, adSpendPrev] =
+    OVERRIDES[m.id] ?? gen(m.id);
+  return {
+    ...m,
+    leads, leadsPrev, sales, salesPrev, adSpend, adSpendPrev,
+    trend: mkTrend(leadsPrev, leads),
+  };
+});
 
 const pctDelta = (curr: number, prev: number) => (prev === 0 ? 0 : (curr - prev) / prev);
 
@@ -107,12 +197,7 @@ export function computeMetrics(list: Dealership[] = RAW): DealershipMetrics[] {
     const cpsPrev = d.salesPrev > 0 ? d.adSpendPrev / d.salesPrev : 0;
     return {
       ...d,
-      closeRate,
-      closeRatePrev,
-      cpl,
-      cplPrev,
-      cps,
-      cpsPrev,
+      closeRate, closeRatePrev, cpl, cplPrev, cps, cpsPrev,
       leadsDelta: pctDelta(d.leads, d.leadsPrev),
       salesDelta: pctDelta(d.sales, d.salesPrev),
       closeRateDelta: closeRate - closeRatePrev,
@@ -121,7 +206,6 @@ export function computeMetrics(list: Dealership[] = RAW): DealershipMetrics[] {
     };
   });
 
-  // sub-scores 0-100 based on how bad each store is relative to network
   const leadDrops = enriched.map((e) => Math.max(0, -e.leadsDelta));
   const salesDrops = enriched.map((e) => Math.max(0, -e.salesDelta));
   const closeDrops = enriched.map((e) => Math.max(0, -e.closeRateDelta));
@@ -163,15 +247,9 @@ export function networkTotals(m: DealershipMetrics[]) {
   const adSpend = sum("adSpend");
   const adSpendPrev = sum("adSpendPrev");
   return {
-    leads,
-    leadsPrev,
-    leadsDelta: pctDelta(leads, leadsPrev),
-    sales,
-    salesPrev,
-    salesDelta: pctDelta(sales, salesPrev),
-    adSpend,
-    adSpendPrev,
-    adSpendDelta: pctDelta(adSpend, adSpendPrev),
+    leads, leadsPrev, leadsDelta: pctDelta(leads, leadsPrev),
+    sales, salesPrev, salesDelta: pctDelta(sales, salesPrev),
+    adSpend, adSpendPrev, adSpendDelta: pctDelta(adSpend, adSpendPrev),
     closeRate: leads > 0 ? sales / leads : 0,
     closeRatePrev: leadsPrev > 0 ? salesPrev / leadsPrev : 0,
     cpl: leads > 0 ? adSpend / leads : 0,
