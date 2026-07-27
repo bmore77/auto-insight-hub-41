@@ -256,7 +256,10 @@ export function computeMetrics(list: Dealership[] = RAW): DealershipMetrics[] {
     const closeScore = norm(closeDrops[i], closeDrops);
     const cplScore = norm(cplUps[i], cplUps);
     const priorityScore =
-      0.55 * leadsScore + 0.2 * salesScore + 0.15 * closeScore + 0.1 * cplScore;
+      PRIORITY_WEIGHTS.leads * leadsScore +
+      PRIORITY_WEIGHTS.sales * salesScore +
+      PRIORITY_WEIGHTS.close * closeScore +
+      PRIORITY_WEIGHTS.cpl * cplScore;
 
     const reasons: string[] = [];
     if (e.leadsDelta <= -0.05)
@@ -268,7 +271,7 @@ export function computeMetrics(list: Dealership[] = RAW): DealershipMetrics[] {
     if (e.cplDelta >= 0.1)
       reasons.push(`CPL ▲ ${(e.cplDelta * 100).toFixed(0)}%`);
 
-    return { ...e, priorityScore, reasons };
+    return { ...e, priorityScore, leadsScore, salesScore, closeScore, cplScore, reasons };
   });
 }
 
