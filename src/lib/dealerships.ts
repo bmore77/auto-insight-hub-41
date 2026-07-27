@@ -175,6 +175,28 @@ const gen = (id: string): MetricTuple => {
   return [leads, leadsPrev, sales, salesPrev, adSpend, adSpendPrev];
 };
 
+export const OVERRIDE_IDS: ReadonlySet<string> = new Set(Object.keys(OVERRIDES));
+export const ROSTER_SIZE = META.length;
+export const hasRealMetrics = (id: string) => OVERRIDE_IDS.has(id);
+
+/**
+ * Simulate reloading the AutoCanada roster (autocan.ca/dealerships).
+ * In this build the roster is embedded, so we return a fresh copy plus a
+ * timestamp — enough to invalidate memoized validation downstream.
+ */
+export async function refreshRoster(): Promise<{
+  fetchedAt: string;
+  count: number;
+  metrics: DealershipMetrics[];
+}> {
+  await new Promise((r) => setTimeout(r, 350));
+  return {
+    fetchedAt: new Date().toISOString(),
+    count: META.length,
+    metrics: computeMetrics(),
+  };
+}
+
 const RAW: Dealership[] = META.map((m) => {
   const [leads, leadsPrev, sales, salesPrev, adSpend, adSpendPrev] =
     OVERRIDES[m.id] ?? gen(m.id);
