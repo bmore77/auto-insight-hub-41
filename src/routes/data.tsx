@@ -71,12 +71,34 @@ type Issue = {
 
 function DataPage() {
   const [mapping] = useMapping();
+  const [version, setVersion] = useState(0);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const canonical = useMemo(() => computeMetrics(), []);
+  const canonical = useMemo<DealershipMetrics[]>(
+    () => computeMetrics(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [version],
+  );
   const canonicalSet = useMemo(
     () => new Set(canonical.map((d) => normalizeName(d.name))),
     [canonical],
   );
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const res = await refreshRoster();
+      setLastRefresh(new Date(res.fetchedAt));
+      setVersion((v) => v + 1);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!lastRefresh) setLastRefresh(new Date());
+  }, [lastRefresh]);
 
   const report = useMemo(() => {
     const perSource: Record<
