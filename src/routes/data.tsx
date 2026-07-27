@@ -6,6 +6,10 @@ import {
   normalizeName,
   resolveName,
   useMapping,
+  fuzzySuggest,
+  parseMappingFile,
+  importMapping,
+  type ImportValidation,
 } from "@/lib/mapping";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
