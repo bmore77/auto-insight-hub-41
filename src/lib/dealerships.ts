@@ -30,8 +30,20 @@ export type DealershipMetrics = Dealership & {
   adSpendDelta: number;
   cplDelta: number;
   priorityScore: number;
+  /** 0-100 component sub-scores that combine into priorityScore. */
+  leadsScore: number;
+  salesScore: number;
+  closeScore: number;
+  cplScore: number;
   reasons: string[];
 };
+
+export const PRIORITY_WEIGHTS = {
+  leads: 0.55,
+  sales: 0.2,
+  close: 0.15,
+  cpl: 0.1,
+} as const;
 
 const mkTrend = (prev: number, curr: number): number[] => {
   const out: number[] = [];
@@ -244,7 +256,10 @@ export function computeMetrics(list: Dealership[] = RAW): DealershipMetrics[] {
     const closeScore = norm(closeDrops[i], closeDrops);
     const cplScore = norm(cplUps[i], cplUps);
     const priorityScore =
-      0.55 * leadsScore + 0.2 * salesScore + 0.15 * closeScore + 0.1 * cplScore;
+      PRIORITY_WEIGHTS.leads * leadsScore +
+      PRIORITY_WEIGHTS.sales * salesScore +
+      PRIORITY_WEIGHTS.close * closeScore +
+      PRIORITY_WEIGHTS.cpl * cplScore;
 
     const reasons: string[] = [];
     if (e.leadsDelta <= -0.05)
@@ -256,7 +271,7 @@ export function computeMetrics(list: Dealership[] = RAW): DealershipMetrics[] {
     if (e.cplDelta >= 0.1)
       reasons.push(`CPL ▲ ${(e.cplDelta * 100).toFixed(0)}%`);
 
-    return { ...e, priorityScore, reasons };
+    return { ...e, priorityScore, leadsScore, salesScore, closeScore, cplScore, reasons };
   });
 }
 
