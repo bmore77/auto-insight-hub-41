@@ -200,6 +200,12 @@ function DataPage() {
               Dashboard
             </Link>
             <Link
+              to="/priority"
+              className="rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              Priority
+            </Link>
+            <Link
               to="/data"
               className="rounded-md bg-muted px-3 py-1.5 text-foreground"
             >
