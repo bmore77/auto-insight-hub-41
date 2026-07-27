@@ -6,6 +6,10 @@ import {
   normalizeName,
   resolveName,
   useMapping,
+  fuzzySuggest,
+  parseMappingFile,
+  importMapping,
+  type ImportValidation,
 } from "@/lib/mapping";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -24,6 +28,7 @@ import {
   Link2Off,
   Search,
   Trash2,
+  Upload,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -322,43 +327,66 @@ function IssueRow({ issue }: { issue: Issue }) {
   const [, actions] = useMapping();
   const [pick, setPick] = useState<string>("");
   const showRemap = issue.kind === "unmatched";
+  const suggestions = useMemo(
+    () => (showRemap ? fuzzySuggest(issue.name, canonical, 3) : []),
+    [showRemap, issue.name, canonical],
+  );
 
   return (
     <tr className="border-b border-border/40 last:border-0">
-      <td className="px-4 py-3">
+      <td className="px-4 py-3 align-top">
         <IssueBadge kind={issue.kind} />
       </td>
-      <td className="px-4 py-3 font-medium">{issue.name}</td>
-      <td className="px-4 py-3 text-muted-foreground">
+      <td className="px-4 py-3 align-top font-medium">{issue.name}</td>
+      <td className="px-4 py-3 align-top text-muted-foreground">
         {SOURCES.find((s) => s.key === issue.source)?.label ?? issue.source}
       </td>
-      <td className="px-4 py-3 text-muted-foreground">{issue.detail}</td>
-      <td className="px-4 py-3">
+      <td className="px-4 py-3 align-top text-muted-foreground">{issue.detail}</td>
+      <td className="px-4 py-3 align-top">
         {showRemap ? (
-          <div className="flex items-center justify-end gap-2">
-            <Select value={pick} onValueChange={setPick}>
-              <SelectTrigger className="h-8 w-[220px] border-border/60 text-xs">
-                <SelectValue placeholder="Map to dealership…" />
-              </SelectTrigger>
-              <SelectContent>
-                {canonical.map((n) => (
-                  <SelectItem key={n} value={n}>
-                    {n}
-                  </SelectItem>
+          <div className="flex flex-col items-end gap-2">
+            {suggestions.length > 0 && (
+              <div className="flex flex-wrap justify-end gap-1">
+                {suggestions.map((s) => (
+                  <button
+                    key={s.name}
+                    onClick={() => actions.set(issue.name, s.name)}
+                    title={`${Math.round(s.score * 100)}% match`}
+                    className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background px-2 py-0.5 text-[11px] text-foreground/80 transition-colors hover:bg-muted"
+                  >
+                    <span className="truncate max-w-[180px]">{s.name}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {Math.round(s.score * 100)}%
+                    </span>
+                  </button>
                 ))}
-              </SelectContent>
-            </Select>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!pick}
-              onClick={() => {
-                actions.set(issue.name, pick);
-                setPick("");
-              }}
-            >
-              Map
-            </Button>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <Select value={pick} onValueChange={setPick}>
+                <SelectTrigger className="h-8 w-[220px] border-border/60 text-xs">
+                  <SelectValue placeholder="Map to dealership…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {canonical.map((n) => (
+                    <SelectItem key={n} value={n}>
+                      {n}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!pick}
+                onClick={() => {
+                  actions.set(issue.name, pick);
+                  setPick("");
+                }}
+              >
+                Map
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="text-right text-xs text-muted-foreground">—</div>
@@ -459,6 +487,8 @@ function MappingEditor() {
   const entries = Object.entries(mapping);
 
   return (
+    <div className="space-y-6">
+    <ImportPanel canonicalNames={canonicalNames} />
     <div className="grid gap-6 lg:grid-cols-[1fr,1fr]">
       <div className="rounded-2xl border border-border/60 bg-card p-6">
         <div className="mb-4">
@@ -600,6 +630,236 @@ function MappingEditor() {
           </ul>
         )}
       </div>
+    </div>
+    </div>
+  );
+}
+
+/* ---------------- Import panel ---------------- */
+
+function ImportPanel({ canonicalNames }: { canonicalNames: string[] }) {
+  const [text, setText] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [mode, setMode] = useState<"merge" | "replace">("merge");
+  const [result, setResult] = useState<ImportValidation | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+
+  const onFile = async (f: File | null) => {
+    setDone(null);
+    if (!f) return;
+    const t = await f.text();
+    setFileName(f.name);
+    setText(t);
+    setResult(parseMappingFile(t, canonicalNames));
+  };
+
+  const onValidate = () => {
+    setDone(null);
+    setResult(parseMappingFile(text, canonicalNames));
+  };
+
+  const onApply = () => {
+    if (!result?.ok) return;
+    const obj: Record<string, string> = {};
+    for (const e of result.entries) obj[e.alias] = e.canonical;
+    importMapping(obj, mode);
+    setDone(
+      `Imported ${result.entries.length} mapping${
+        result.entries.length === 1 ? "" : "s"
+      } (${mode}).`,
+    );
+    setText("");
+    setFileName("");
+    setResult(null);
+  };
+
+  return (
+    <div className="rounded-2xl border border-border/60 bg-card p-6">
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div>
+          <h3 className="text-sm font-semibold tracking-tight">
+            Import mappings
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Upload a JSON or CSV file, validate, then merge or replace existing
+            aliases. Accepted formats: <code>{`{ "alias": "Canonical" }`}</code>,{" "}
+            <code>{`[{ "alias", "canonical" }]`}</code>, or CSV with
+            <code> alias,canonical</code>.
+          </p>
+        </div>
+        <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border/60 bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted">
+          <Upload className="h-3.5 w-3.5" />
+          Choose file
+          <input
+            type="file"
+            accept=".json,.csv,.txt,application/json,text/csv"
+            className="hidden"
+            onChange={(e) => onFile(e.target.files?.[0] ?? null)}
+          />
+        </label>
+      </div>
+
+      <textarea
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          setResult(null);
+          setDone(null);
+        }}
+        placeholder='{ "Maple Ridge VW": "Maple Ridge Volkswagen" }'
+        className="min-h-[120px] w-full rounded-md border border-border/60 bg-background p-3 font-mono text-xs"
+      />
+
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        {fileName && (
+          <span className="text-xs text-muted-foreground">
+            Loaded <span className="font-medium text-foreground">{fileName}</span>
+          </span>
+        )}
+        <div className="ml-auto flex items-center gap-2">
+          <Select value={mode} onValueChange={(v) => setMode(v as typeof mode)}>
+            <SelectTrigger className="h-9 w-[140px] border-border/60 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="merge">Merge</SelectItem>
+              <SelectItem value="replace">Replace all</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" onClick={onValidate} disabled={!text.trim()}>
+            Validate
+          </Button>
+          <Button onClick={onApply} disabled={!result?.ok}>
+            {mode === "replace" ? "Replace mappings" : "Merge mappings"}
+          </Button>
+        </div>
+      </div>
+
+      {done && (
+        <div className="mt-4 flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          {done}
+        </div>
+      )}
+
+      {result && (
+        <div className="mt-4 space-y-3">
+          <div className="flex flex-wrap gap-2 text-xs">
+            <Stat
+              label="Valid rows"
+              value={result.entries.length}
+              tone={result.entries.length ? "ok" : "warn"}
+            />
+            <Stat
+              label="Errors"
+              value={result.errors.length}
+              tone={result.errors.length ? "warn" : "ok"}
+            />
+            <Stat
+              label="Warnings"
+              value={result.warnings.length}
+              tone={result.warnings.length ? "warn" : "neutral"}
+            />
+          </div>
+
+          {result.errors.length > 0 && (
+            <IssueList
+              title="Errors"
+              tone="error"
+              items={result.errors}
+            />
+          )}
+          {result.warnings.length > 0 && (
+            <IssueList
+              title="Warnings"
+              tone="warn"
+              items={result.warnings}
+            />
+          )}
+
+          {result.entries.length > 0 && (
+            <div className="overflow-hidden rounded-md border border-border/60">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-muted/30 text-left text-[10px] uppercase tracking-wider text-muted-foreground">
+                    <th className="px-3 py-2 font-medium">Alias</th>
+                    <th className="px-3 py-2 font-medium">→ Canonical</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.entries.slice(0, 12).map((e, i) => (
+                    <tr key={i} className="border-t border-border/40">
+                      <td className="px-3 py-1.5">{e.alias}</td>
+                      <td className="px-3 py-1.5 text-muted-foreground">
+                        {e.canonical}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {result.entries.length > 12 && (
+                <div className="border-t border-border/40 bg-muted/20 px-3 py-1.5 text-[11px] text-muted-foreground">
+                  +{result.entries.length - 12} more…
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: "ok" | "warn" | "neutral";
+}) {
+  const cls =
+    tone === "warn"
+      ? "bg-amber-50 text-amber-800 ring-amber-200"
+      : tone === "ok"
+      ? "bg-emerald-50 text-emerald-800 ring-emerald-200"
+      : "bg-muted text-foreground ring-border";
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 ring-1 ring-inset",
+        cls,
+      )}
+    >
+      <span className="font-medium">{value}</span>
+      <span className="opacity-80">{label}</span>
+    </span>
+  );
+}
+
+function IssueList({
+  title,
+  items,
+  tone,
+}: {
+  title: string;
+  items: string[];
+  tone: "error" | "warn";
+}) {
+  const cls =
+    tone === "error"
+      ? "border-rose-200 bg-rose-50 text-rose-800"
+      : "border-amber-200 bg-amber-50 text-amber-800";
+  return (
+    <div className={cn("rounded-md border px-3 py-2 text-xs", cls)}>
+      <div className="mb-1 font-medium">{title}</div>
+      <ul className="list-inside list-disc space-y-0.5">
+        {items.slice(0, 8).map((m, i) => (
+          <li key={i}>{m}</li>
+        ))}
+        {items.length > 8 && <li>+{items.length - 8} more…</li>}
+      </ul>
     </div>
   );
 }
