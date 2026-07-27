@@ -28,6 +28,7 @@ import {
   Link2Off,
   Search,
   Trash2,
+  Upload,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
