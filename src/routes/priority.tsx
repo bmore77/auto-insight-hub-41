@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
-  computeMetrics,
   formatCurrency,
   formatDelta,
   formatDeltaPt,
@@ -9,6 +8,8 @@ import {
   PRIORITY_WEIGHTS,
   type DealershipMetrics,
 } from "@/lib/dealerships";
+import { useDashboardData } from "@/lib/snapshots";
+import { SnapshotPicker } from "@/components/SnapshotPicker";
 import { Input } from "@/components/ui/input";
 import {
   Select,
