@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 
-import { ROSTER, formatCurrency } from "@/lib/dealerships";
+import { ROSTER } from "@/lib/dealerships";
 import { fuzzySuggest, normalizeName, resolveName, setAlias, useMapping } from "@/lib/mapping";
 import {
   createSnapshot,
