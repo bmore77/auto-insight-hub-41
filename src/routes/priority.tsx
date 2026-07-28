@@ -122,7 +122,20 @@ function PriorityPage() {
             >
               Data
             </Link>
+            <Link
+              to="/import"
+              className="rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              Import
+            </Link>
           </nav>
+          <SnapshotPicker
+            snapshots={dash.snapshots}
+            selected={dash.selected}
+            onSelect={dash.selectId}
+            source={dash.source}
+            className="ml-3"
+          />
         </div>
       </header>
 
