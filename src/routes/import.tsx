@@ -742,9 +742,8 @@ function ImportPage() {
         </section>
 
         <p className="pb-8 text-xs text-muted-foreground">
-          Network spend shown elsewhere is formatted as {formatCurrency(1000)}-style values.
-          When Tableau is connected live, it can write into the same snapshot tables and
-          nothing else has to change.
+          When Tableau is connected live it can write into these same snapshot tables —
+          the dashboard, scoring and history stay exactly as they are.
         </p>
       </main>
     </div>
