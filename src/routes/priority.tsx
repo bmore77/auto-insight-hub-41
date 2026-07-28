@@ -74,10 +74,11 @@ function PriorityPage() {
         if (q && !m.name.toLowerCase().includes(q.toLowerCase())) return false;
         const b = tier(m.priorityScore);
         if (bucket !== "all" && b !== bucket) return false;
+        if (onlyOpen && plans[m.id]?.status === "addressed") return false;
         return true;
       })
       .sort((a, b) => b.priorityScore - a.priorityScore);
-  }, [metrics, region, brand, q, bucket]);
+  }, [metrics, region, brand, q, bucket, onlyOpen, plans]);
 
   const tierCounts = useMemo(() => {
     const c = { high: 0, med: 0, low: 0 };
