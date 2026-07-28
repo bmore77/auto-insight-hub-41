@@ -1,10 +1,10 @@
 /**
  * Per-dealership action plans (next steps, notes, addressed tracking).
- * Persisted in localStorage so VPs can track follow-up without a backend.
+ * Persisted in the Lovable Cloud database so the workflow is shared across devices.
  */
 import { useCallback, useEffect, useState } from "react";
 
-const KEY = "ac.actionPlans.v1";
+import { supabase } from "@/integrations/supabase/client";
 
 export type PlanStatus = "not_started" | "in_progress" | "addressed";
 
@@ -58,22 +58,39 @@ export function emptyPlan(dealershipId: string, score: number | null): ActionPla
   };
 }
 
-export function loadPlans(): PlanMap {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as PlanMap) : {};
-  } catch {
-    return {};
-  }
+type PlanRow = {
+  dealership_id: string;
+  status: string;
+  owner: string;
+  steps: unknown;
+  notes: unknown;
+  score_when_ranked: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+function rowToPlan(row: PlanRow): ActionPlan {
+  return {
+    dealershipId: row.dealership_id,
+    status: (row.status as PlanStatus) ?? "not_started",
+    owner: row.owner ?? "",
+    steps: Array.isArray(row.steps) ? (row.steps as ActionStep[]) : [],
+    notes: Array.isArray(row.notes) ? (row.notes as ActionNote[]) : [],
+    scoreWhenRanked: row.score_when_ranked,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }
 
-function savePlans(plans: PlanMap) {
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(plans));
-  } catch {
-    /* quota / private mode — ignore */
-  }
+function planToRow(plan: ActionPlan) {
+  return {
+    dealership_id: plan.dealershipId,
+    status: plan.status,
+    owner: plan.owner,
+    steps: plan.steps as unknown as never,
+    notes: plan.notes as unknown as never,
+    score_when_ranked: plan.scoreWhenRanked,
+  };
 }
 
 /** Suggested next steps derived from why a store was flagged. */
@@ -92,20 +109,46 @@ export function suggestedSteps(reasons: string[]): string[] {
 export function useActionPlans() {
   const [plans, setPlans] = useState<PlanMap>({});
 
-  useEffect(() => {
-    setPlans(loadPlans());
+  const refresh = useCallback(async () => {
+    const { data, error } = await supabase.from("action_plans").select("*");
+    if (error) {
+      console.error("Failed to load action plans", error);
+      return;
+    }
+    const next: PlanMap = {};
+    for (const row of (data ?? []) as PlanRow[]) next[row.dealership_id] = rowToPlan(row);
+    setPlans(next);
   }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  // Keep every open device in sync.
+  useEffect(() => {
+    const channel = supabase
+      .channel("action_plans_sync")
+      .on("postgres_changes", { event: "*", schema: "public", table: "action_plans" }, () => {
+        void refresh();
+      })
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [refresh]);
 
   const update = useCallback(
     (dealershipId: string, score: number | null, fn: (p: ActionPlan) => ActionPlan) => {
       setPlans((prev) => {
         const base = prev[dealershipId] ?? emptyPlan(dealershipId, score);
-        const next: PlanMap = {
-          ...prev,
-          [dealershipId]: { ...fn(base), updatedAt: new Date().toISOString() },
-        };
-        savePlans(next);
-        return next;
+        const updated: ActionPlan = { ...fn(base), updatedAt: new Date().toISOString() };
+        void supabase
+          .from("action_plans")
+          .upsert(planToRow(updated), { onConflict: "dealership_id" })
+          .then(({ error }) => {
+            if (error) console.error("Failed to save action plan", error);
+          });
+        return { ...prev, [dealershipId]: updated };
       });
     },
     [],
@@ -167,13 +210,20 @@ export function useActionPlans() {
     setPlans((prev) => {
       const next = { ...prev };
       delete next[id];
-      savePlans(next);
       return next;
     });
+    void supabase
+      .from("action_plans")
+      .delete()
+      .eq("dealership_id", id)
+      .then(({ error }) => {
+        if (error) console.error("Failed to reset action plan", error);
+      });
   }, []);
 
   return {
     plans,
+    refresh,
     setStatus,
     setOwner,
     addStep,
