@@ -308,6 +308,20 @@ function PriorityRow({
         <div className="flex items-center gap-2">
           <span className="truncate font-medium">{d.name}</span>
           {t === "high" && <Flame className="h-3.5 w-3.5 text-rose-600" />}
+          {plan && (
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                plan.status === "addressed"
+                  ? "bg-emerald-50 text-emerald-700"
+                  : plan.status === "in_progress"
+                  ? "bg-amber-50 text-amber-700"
+                  : "bg-muted text-muted-foreground",
+              )}
+            >
+              {STATUS_LABEL[plan.status]}
+            </span>
+          )}
         </div>
         <div className="mt-0.5 text-xs text-muted-foreground">
           {d.city} · {d.region} · {d.brand}
