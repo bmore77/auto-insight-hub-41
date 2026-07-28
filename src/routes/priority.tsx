@@ -52,6 +52,10 @@ function PriorityPage() {
   const [brand, setBrand] = useState("All");
   const [bucket, setBucket] = useState<Bucket>("all");
   const [q, setQ] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [onlyOpen, setOnlyOpen] = useState(false);
+  const plansApi = useActionPlans();
+  const { plans } = plansApi;
 
   const regions = useMemo(
     () => ["All", ...Array.from(new Set(metrics.map((m) => m.region)))],
