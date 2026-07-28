@@ -1,14 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  AlertTriangle,
-  Check,
-  Eye,
-  Loader2,
-  Trash2,
-  Upload,
-} from "lucide-react";
+import { AlertTriangle, Check, Eye, Loader2, Trash2, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +29,7 @@ import {
   uploadScreenshot,
   type Snapshot,
 } from "@/lib/snapshots";
-import { parseScreenshots, type ParsedTable } from "@/lib/screenshot-parse.functions";
+import { parseScreenshot, type ParsedTable } from "@/lib/screenshot-parse.functions";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/import")({
@@ -46,13 +39,13 @@ export const Route = createFileRoute("/import")({
       {
         name: "description",
         content:
-          "Upload a Tableau screenshot, review the extracted dealership numbers, and save it as a dated snapshot the dashboard can rank.",
+          "Bulk upload Tableau screenshots, review confidence-scored dealership numbers, and publish them as dated snapshots.",
       },
       { property: "og:title", content: "Import Screenshot Data — Auto Canada" },
       {
         property: "og:description",
         content:
-          "Turn a daily Tableau screenshot into structured dealership metrics with review and date-range history.",
+          "Turn daily Tableau screenshots into structured dealership metrics with confidence scoring and date-range history.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -74,7 +67,9 @@ type ReviewRow = {
   adSpend: number | null;
   adSpendPrev: number | null;
   closeRate: number | null;
-  lowConfidence: boolean;
+  /** 0–100 average confidence across every metric read for this store. */
+  confidence: number;
+  warnings: string[];
 };
 
 type UnmatchedRow = {
@@ -83,6 +78,31 @@ type UnmatchedRow = {
   name: string;
   current: number | null;
   previous: number | null;
+  confidence: number;
+};
+
+type QueueItem = {
+  id: string;
+  file: File;
+  preview: string;
+  status: "queued" | "parsing" | "done" | "error";
+  error?: string;
+};
+
+type Draft = {
+  key: string;
+  reportDate: string;
+  periodLabel: string;
+  sourceView: string;
+  notes: string;
+  files: File[];
+  previews: string[];
+  tables: ParsedTable[];
+  rows: ReviewRow[];
+  unmatched: UnmatchedRow[];
+  warnings: string[];
+  dateDetected: boolean;
+  saving: boolean;
 };
 
 const fileToDataUrl = (file: File) =>
@@ -100,6 +120,8 @@ const fmtDate = (d: string) =>
     year: "numeric",
   });
 
+const today = () => new Date().toISOString().slice(0, 10);
+
 const METRIC_LABEL: Record<MetricKey, string> = {
   leads: "Leads",
   sales: "Sales",
@@ -108,27 +130,41 @@ const METRIC_LABEL: Record<MetricKey, string> = {
   unknown: "Unclassified",
 };
 
+const confTone = (c: number) =>
+  c >= 85
+    ? "bg-emerald-500/10 text-emerald-600"
+    : c >= 70
+      ? "bg-amber-500/10 text-amber-700"
+      : "bg-destructive/10 text-destructive";
+
+function ConfidenceBadge({ value, warnings }: { value: number; warnings: string[] }) {
+  return (
+    <span
+      title={warnings.length ? warnings.join("\n") : "No parsing warnings"}
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
+        confTone(value),
+      )}
+    >
+      {warnings.length > 0 && <AlertTriangle className="h-3 w-3" />}
+      {value}%
+    </span>
+  );
+}
+
 function ImportPage() {
   const [mapping] = useMapping();
 
-  const [files, setFiles] = useState<File[]>([]);
-  const [reportDate, setReportDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [periodLabel, setPeriodLabel] = useState("");
-  const [sourceView, setSourceView] = useState("store");
-  const [notes, setNotes] = useState("");
-
+  const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [drafts, setDrafts] = useState<Draft[]>([]);
   const [parsing, setParsing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [tables, setTables] = useState<ParsedTable[]>([]);
-  const [rows, setRows] = useState<ReviewRow[]>([]);
-  const [unmatched, setUnmatched] = useState<UnmatchedRow[]>([]);
-  const [warnings, setWarnings] = useState<string[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
+  const [fallbackDate, setFallbackDate] = useState(today);
+  const [sourceView, setSourceView] = useState("store");
 
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
 
-  const parse = useServerFn(parseScreenshots);
+  const parseOne = useServerFn(parseScreenshot);
 
   const refreshHistory = useCallback(async () => {
     try {
@@ -147,11 +183,26 @@ function ImportPage() {
     void refreshHistory();
   }, [refreshHistory]);
 
-  useEffect(() => {
-    const urls = files.map((f) => URL.createObjectURL(f));
-    setPreviews(urls);
-    return () => urls.forEach((u) => URL.revokeObjectURL(u));
-  }, [files]);
+  const addFiles = (list: FileList | null) => {
+    const incoming = Array.from(list ?? []);
+    if (incoming.length === 0) return;
+    setQueue((prev) => [
+      ...prev,
+      ...incoming.map((file) => ({
+        id: crypto.randomUUID(),
+        file,
+        preview: URL.createObjectURL(file),
+        status: "queued" as const,
+      })),
+    ]);
+  };
+
+  const removeQueued = (id: string) =>
+    setQueue((prev) => {
+      const hit = prev.find((q) => q.id === id);
+      if (hit) URL.revokeObjectURL(hit.preview);
+      return prev.filter((q) => q.id !== id);
+    });
 
   /* ---------------- reconciliation ---------------- */
 
@@ -178,7 +229,7 @@ function ImportPage() {
 
   const buildReview = useCallback(
     (parsedTables: ParsedTable[]) => {
-      const byStore = new Map<string, ReviewRow>();
+      const byStore = new Map<string, ReviewRow & { _scores: number[] }>();
       const misses: UnmatchedRow[] = [];
 
       for (const t of parsedTables) {
@@ -192,6 +243,7 @@ function ImportPage() {
               name: r.name,
               current: r.current,
               previous: r.previous,
+              confidence: r.confidence,
             });
             continue;
           }
@@ -208,9 +260,14 @@ function ImportPage() {
               adSpend: null,
               adSpendPrev: null,
               closeRate: null,
-              lowConfidence: false,
-            } as ReviewRow);
-          if (r.confidence === "low") row.lowConfidence = true;
+              confidence: 100,
+              warnings: [],
+              _scores: [],
+            } as ReviewRow & { _scores: number[] });
+
+          row._scores.push(r.confidence);
+          for (const w of r.warnings) row.warnings.push(`${METRIC_LABEL[metric]}: ${w}`);
+
           if (metric === "leads") {
             row.leads = r.current;
             row.leadsPrev = r.previous;
@@ -227,89 +284,208 @@ function ImportPage() {
         }
       }
 
-      setRows(
-        Array.from(byStore.values()).sort((a, b) => a.name.localeCompare(b.name)),
-      );
-      setUnmatched(misses);
+      const rows = Array.from(byStore.values())
+        .map(({ _scores, ...row }) => ({
+          ...row,
+          confidence: _scores.length
+            ? Math.round(_scores.reduce((a, b) => a + b, 0) / _scores.length)
+            : 0,
+        }))
+        .sort((a, b) => a.confidence - b.confidence || a.name.localeCompare(b.name));
+
+      return { rows, unmatched: misses };
     },
     [matchStore],
   );
 
-  // Re-run matching when the user adds a mapping alias.
+  // Re-run matching whenever the user saves a new alias.
   useEffect(() => {
-    if (tables.length > 0) buildReview(tables);
+    setDrafts((prev) =>
+      prev.map((d) => {
+        const { rows, unmatched } = buildReview(d.tables);
+        return { ...d, rows, unmatched };
+      }),
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapping]);
 
-  /* ---------------- actions ---------------- */
+  /* ---------------- bulk parse ---------------- */
 
   const runParse = async () => {
-    if (files.length === 0) {
+    const pending = queue.filter((q) => q.status !== "done");
+    if (pending.length === 0) {
       toast.error("Add at least one screenshot first.");
       return;
     }
     setParsing(true);
-    try {
-      const images = await Promise.all(files.map(fileToDataUrl));
-      const result = await parse({ data: { images } });
-      setTables(result.tables);
-      setWarnings(result.warnings ?? []);
-      buildReview(result.tables);
-      if (result.periodLabel && !periodLabel) setPeriodLabel(result.periodLabel);
-      const total = result.tables.reduce((s, t) => s + t.rows.length, 0);
-      toast.success(`Read ${total} rows across ${result.tables.length} tables.`);
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setParsing(false);
+
+    const grouped = new Map<
+      string,
+      {
+        tables: ParsedTable[];
+        warnings: string[];
+        files: File[];
+        previews: string[];
+        periodLabel: string;
+        dateDetected: boolean;
+      }
+    >();
+
+    for (const item of pending) {
+      setQueue((prev) =>
+        prev.map((q) => (q.id === item.id ? { ...q, status: "parsing" } : q)),
+      );
+      try {
+        const image = await fileToDataUrl(item.file);
+        const result = await parseOne({ data: { image } });
+        const date = result.reportDate ?? fallbackDate;
+        const bucket = grouped.get(date) ?? {
+          tables: [],
+          warnings: [],
+          files: [],
+          previews: [],
+          periodLabel: "",
+          dateDetected: Boolean(result.reportDate),
+        };
+        bucket.tables.push(...result.tables);
+        bucket.warnings.push(
+          ...result.warnings.map((w) => `${item.file.name}: ${w}`),
+        );
+        bucket.files.push(item.file);
+        bucket.previews.push(item.preview);
+        if (!bucket.periodLabel && result.periodLabel) bucket.periodLabel = result.periodLabel;
+        if (result.reportDate) bucket.dateDetected = true;
+        grouped.set(date, bucket);
+        setQueue((prev) =>
+          prev.map((q) => (q.id === item.id ? { ...q, status: "done" } : q)),
+        );
+      } catch (e) {
+        const msg = (e as Error).message;
+        setQueue((prev) =>
+          prev.map((q) => (q.id === item.id ? { ...q, status: "error", error: msg } : q)),
+        );
+        toast.error(`${item.file.name}: ${msg}`);
+      }
+    }
+
+    setDrafts((prev) => {
+      const next = [...prev];
+      for (const [date, bucket] of grouped) {
+        const { rows, unmatched } = buildReview(bucket.tables);
+        const existing = next.findIndex((d) => d.key === date);
+        const draft: Draft = {
+          key: date,
+          reportDate: date,
+          periodLabel: bucket.periodLabel,
+          sourceView,
+          notes: "",
+          files: bucket.files,
+          previews: bucket.previews,
+          tables: bucket.tables,
+          rows,
+          unmatched,
+          warnings: bucket.warnings,
+          dateDetected: bucket.dateDetected,
+          saving: false,
+        };
+        if (existing >= 0) {
+          const merged = [...next[existing].tables, ...bucket.tables];
+          const rebuilt = buildReview(merged);
+          next[existing] = {
+            ...next[existing],
+            tables: merged,
+            files: [...next[existing].files, ...bucket.files],
+            previews: [...next[existing].previews, ...bucket.previews],
+            warnings: [...next[existing].warnings, ...bucket.warnings],
+            rows: rebuilt.rows,
+            unmatched: rebuilt.unmatched,
+          };
+        } else {
+          next.push(draft);
+        }
+      }
+      return next.sort((a, b) => b.reportDate.localeCompare(a.reportDate));
+    });
+
+    setParsing(false);
+    const dates = grouped.size;
+    if (dates > 0) {
+      toast.success(
+        `Parsed ${pending.length} screenshot${pending.length > 1 ? "s" : ""} into ${dates} snapshot${dates > 1 ? "s" : ""}.`,
+      );
     }
   };
 
-  const editCell = (id: string, key: keyof ReviewRow, value: string) => {
+  /* ---------------- draft editing ---------------- */
+
+  const patchDraft = (key: string, patch: Partial<Draft>) =>
+    setDrafts((prev) => prev.map((d) => (d.key === key ? { ...d, ...patch } : d)));
+
+  const editCell = (key: string, id: string, field: keyof ReviewRow, value: string) => {
     const num = value.trim() === "" ? null : Number(value.replace(/[^0-9.-]/g, ""));
-    setRows((prev) =>
-      prev.map((r) =>
-        r.dealershipId === id
-          ? { ...r, [key]: Number.isFinite(num as number) ? num : null }
-          : r,
+    setDrafts((prev) =>
+      prev.map((d) =>
+        d.key === key
+          ? {
+              ...d,
+              rows: d.rows.map((r) =>
+                r.dealershipId === id
+                  ? {
+                      ...r,
+                      [field]: Number.isFinite(num as number) ? num : null,
+                      confidence: 100,
+                      warnings: [],
+                    }
+                  : r,
+              ),
+            }
+          : d,
       ),
     );
   };
 
-  const dropRow = (id: string) =>
-    setRows((prev) => prev.filter((r) => r.dealershipId !== id));
+  const dropRow = (key: string, id: string) =>
+    setDrafts((prev) =>
+      prev.map((d) =>
+        d.key === key ? { ...d, rows: d.rows.filter((r) => r.dealershipId !== id) } : d,
+      ),
+    );
 
-  const mapUnmatched = (row: UnmatchedRow, canonical: string) => {
-    setAlias(row.name, canonical);
-    toast.success(`"${row.name}" → ${canonical}`);
+  const discardDraft = (key: string) =>
+    setDrafts((prev) => prev.filter((d) => d.key !== key));
+
+  const mapUnmatched = (name: string, canonical: string) => {
+    setAlias(name, canonical);
+    toast.success(`"${name}" → ${canonical}`);
   };
 
-  const publish = async () => {
-    if (rows.length === 0) {
-      toast.error("Nothing to save — parse a screenshot first.");
-      return;
+  /* ---------------- publish ---------------- */
+
+  const publishDraft = async (draft: Draft, quiet = false) => {
+    if (draft.rows.length === 0) {
+      toast.error(`${fmtDate(draft.reportDate)}: nothing to save.`);
+      return false;
     }
-    setSaving(true);
+    patchDraft(draft.key, { saving: true });
     try {
       const paths: string[] = [];
-      for (const f of files) paths.push(await uploadScreenshot(f));
+      for (const f of draft.files) paths.push(await uploadScreenshot(f));
 
-      // Replace any snapshot already saved for this date + view.
       const existing = snapshots.find(
-        (s) => s.reportDate === reportDate && s.sourceView === sourceView,
+        (s) => s.reportDate === draft.reportDate && s.sourceView === draft.sourceView,
       );
       if (existing) await deleteSnapshot(existing.id);
 
       const snap = await createSnapshot({
-        reportDate,
-        periodLabel,
-        sourceView,
+        reportDate: draft.reportDate,
+        periodLabel: draft.periodLabel,
+        sourceView: draft.sourceView,
         imagePaths: paths,
-        notes,
+        notes: draft.notes,
       });
       await replaceSnapshotMetrics(
         snap.id,
-        rows.map((r) => ({
+        draft.rows.map((r) => ({
           dealershipId: r.dealershipId,
           sourceName: r.sourceName,
           leads: r.leads,
@@ -322,18 +498,30 @@ function ImportPage() {
       );
       await setSnapshotStatus(snap.id, "published");
       setSelectedSnapshotId(snap.id);
-      toast.success(`Snapshot for ${fmtDate(reportDate)} published to the dashboard.`);
-      setFiles([]);
-      setRows([]);
-      setUnmatched([]);
-      setTables([]);
-      setWarnings([]);
+      if (!quiet) toast.success(`Snapshot for ${fmtDate(draft.reportDate)} published.`);
+      discardDraft(draft.key);
+      setQueue((prev) => {
+        prev.forEach((q) => {
+          if (draft.files.includes(q.file)) URL.revokeObjectURL(q.preview);
+        });
+        return prev.filter((q) => !draft.files.includes(q.file));
+      });
       await refreshHistory();
+      return true;
     } catch (e) {
       toast.error((e as Error).message);
-    } finally {
-      setSaving(false);
+      patchDraft(draft.key, { saving: false });
+      return false;
     }
+  };
+
+  const publishAll = async () => {
+    let ok = 0;
+    for (const d of [...drafts]) {
+      // eslint-disable-next-line no-await-in-loop
+      if (await publishDraft(d, true)) ok += 1;
+    }
+    if (ok) toast.success(`Published ${ok} snapshot${ok > 1 ? "s" : ""}.`);
   };
 
   const viewImage = async (path: string) => {
@@ -353,21 +541,23 @@ function ImportPage() {
     await refreshHistory();
   };
 
-  /* ---------------- derived checks ---------------- */
-
-  const issues = useMemo(() => {
+  const draftIssues = (d: Draft) => {
     const out: string[] = [];
-    const missingLeads = rows.filter((r) => r.leads == null).length;
+    const missingLeads = d.rows.filter((r) => r.leads == null).length;
     if (missingLeads) out.push(`${missingLeads} stores have no leads value.`);
-    const mismatch = rows.filter((r) => {
+    const lowConf = d.rows.filter((r) => r.confidence < 70).length;
+    if (lowConf) out.push(`${lowConf} low-confidence rows (under 70%) — verify before publishing.`);
+    const mismatch = d.rows.filter((r) => {
       if (r.closeRate == null || !r.leads || r.sales == null) return false;
       const implied = (r.sales / r.leads) * 100;
       return Math.abs(implied - r.closeRate) > 1.5;
     }).length;
     if (mismatch)
       out.push(`${mismatch} stores where sales ÷ leads doesn't match the printed close rate.`);
+    if (!d.dateDetected)
+      out.push("No date was printed on these screenshots — confirm the report date.");
     return out;
-  }, [rows]);
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -403,8 +593,9 @@ function ImportPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Import screenshot data</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Drop today's Tableau screenshots, review what was read, and publish it as a
-            dated snapshot. Every dashboard view can then switch between saved dates.
+            Drop a batch of Tableau screenshots — each one is read on its own and grouped
+            into a snapshot by the date printed on it. Review the confidence scores, fix
+            anything flagged, then publish.
           </p>
         </div>
 
@@ -414,11 +605,18 @@ function ImportPage() {
             <div>
               <label
                 htmlFor="shots"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  addFiles(e.dataTransfer.files);
+                }}
                 className="flex h-40 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 text-sm text-muted-foreground transition-colors hover:bg-muted/60"
               >
                 <Upload className="h-5 w-5" />
-                <span>Click to add screenshots (PNG / JPG)</span>
-                <span className="text-xs">Multiple crops from the same day are fine</span>
+                <span>Drop or click to add screenshots (PNG / JPG)</span>
+                <span className="text-xs">
+                  Multiple days at once — they're split into snapshots by date
+                </span>
               </label>
               <input
                 id="shots"
@@ -426,17 +624,35 @@ function ImportPage() {
                 accept="image/*"
                 multiple
                 className="hidden"
-                onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+                onChange={(e) => {
+                  addFiles(e.target.files);
+                  e.target.value = "";
+                }}
               />
-              {previews.length > 0 && (
+              {queue.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {previews.map((p, i) => (
-                    <img
-                      key={p}
-                      src={p}
-                      alt={`Screenshot ${i + 1} to import`}
-                      className="h-20 rounded-md border border-border/60 object-cover"
-                    />
+                  {queue.map((q) => (
+                    <div key={q.id} className="relative">
+                      <img
+                        src={q.preview}
+                        alt={`Screenshot ${q.file.name} queued for import`}
+                        className={cn(
+                          "h-20 rounded-md border border-border/60 object-cover",
+                          q.status === "done" && "opacity-50",
+                          q.status === "error" && "border-destructive",
+                        )}
+                      />
+                      <div className="absolute inset-x-0 bottom-0 rounded-b-md bg-background/85 px-1 py-0.5 text-center text-[10px] text-muted-foreground">
+                        {q.status === "parsing" ? "reading…" : q.status}
+                      </div>
+                      <button
+                        onClick={() => removeQueued(q.id)}
+                        aria-label={`Remove ${q.file.name}`}
+                        className="absolute -right-1.5 -top-1.5 rounded-full border border-border bg-background p-0.5 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
                   ))}
                 </div>
               )}
@@ -444,22 +660,18 @@ function ImportPage() {
 
             <div className="space-y-3">
               <div>
-                <div className="mb-1 text-xs font-medium text-muted-foreground">Report date</div>
+                <div className="mb-1 text-xs font-medium text-muted-foreground">
+                  Fallback report date
+                </div>
                 <Input
                   type="date"
-                  value={reportDate}
-                  onChange={(e) => setReportDate(e.target.value)}
+                  value={fallbackDate}
+                  onChange={(e) => setFallbackDate(e.target.value)}
                   className="h-9"
                 />
-              </div>
-              <div>
-                <div className="mb-1 text-xs font-medium text-muted-foreground">Period label</div>
-                <Input
-                  placeholder="e.g. Jul 1 – Jul 28"
-                  value={periodLabel}
-                  onChange={(e) => setPeriodLabel(e.target.value)}
-                  className="h-9"
-                />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Used only when no date is visible in a screenshot.
+                </p>
               </div>
               <div>
                 <div className="mb-1 text-xs font-medium text-muted-foreground">Source view</div>
@@ -480,183 +692,258 @@ function ImportPage() {
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Reading screenshots…
                   </>
                 ) : (
-                  "Parse screenshots"
+                  `Parse ${queue.filter((q) => q.status !== "done").length || ""} screenshot${
+                    queue.filter((q) => q.status !== "done").length === 1 ? "" : "s"
+                  }`
                 )}
               </Button>
             </div>
           </div>
         </section>
 
-        {warnings.length > 0 && (
-          <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-700">
-            {warnings.map((w) => (
-              <div key={w} className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>{w}</span>
-              </div>
-            ))}
+        {drafts.length > 1 && (
+          <div className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-3 text-sm">
+            <span>
+              {drafts.length} snapshots ready across{" "}
+              {drafts.map((d) => fmtDate(d.reportDate)).join(", ")}
+            </span>
+            <Button size="sm" onClick={() => void publishAll()}>
+              <Check className="mr-2 h-4 w-4" /> Publish all
+            </Button>
           </div>
         )}
 
-        {/* Unmatched */}
-        {unmatched.length > 0 && (
-          <section className="rounded-xl border border-border/60 p-6">
-            <h2 className="text-sm font-semibold">
-              Unmatched store names ({unmatched.length})
-            </h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              These names couldn't be tied to a dealership. Pick the right store — the alias
-              is saved so future imports match automatically.
-            </p>
-            <div className="mt-4 space-y-2">
-              {unmatched.map((u) => {
-                const suggestions = fuzzySuggest(u.name, canonicalNames, 3);
-                return (
-                  <div
-                    key={u.key}
-                    className="flex flex-wrap items-center gap-3 rounded-lg border border-border/60 px-3 py-2 text-sm"
-                  >
-                    <span className="font-medium">{u.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {METRIC_LABEL[u.metric]} · {u.current ?? "—"} vs {u.previous ?? "—"}
-                    </span>
-                    <div className="ml-auto flex flex-wrap items-center gap-2">
-                      {suggestions.map((s) => (
-                        <button
-                          key={s.name}
-                          onClick={() => mapUnmatched(u, s.name)}
-                          className="rounded-full border border-border/60 px-2.5 py-1 text-xs transition-colors hover:bg-muted"
-                        >
-                          {s.name} · {(s.score * 100).toFixed(0)}%
-                        </button>
-                      ))}
-                      <Select onValueChange={(v) => mapUnmatched(u, v)}>
-                        <SelectTrigger className="h-8 w-[200px] text-xs">
-                          <SelectValue placeholder="Map to dealership" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {canonicalNames.map((n) => (
-                            <SelectItem key={n} value={n}>
-                              {n}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* Review grid */}
-        {rows.length > 0 && (
-          <section className="rounded-xl border border-border/60">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-6 py-4">
-              <div>
-                <h2 className="text-sm font-semibold">Review ({rows.length} stores)</h2>
-                <p className="text-xs text-muted-foreground">
-                  Edit any cell before publishing. Blank values fall back to the store's last
-                  known number.
-                </p>
-              </div>
-              <Button onClick={publish} disabled={saving}>
-                {saving ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving…
-                  </>
-                ) : (
-                  <>
-                    <Check className="mr-2 h-4 w-4" /> Publish snapshot
-                  </>
-                )}
-              </Button>
-            </div>
-
-            {issues.length > 0 && (
-              <div className="border-b border-border/60 bg-amber-500/5 px-6 py-3 text-xs text-amber-700">
-                {issues.map((i) => (
-                  <div key={i}>• {i}</div>
-                ))}
-              </div>
-            )}
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-xs text-muted-foreground">
-                  <tr className="border-b border-border/60">
-                    <th className="px-6 py-2 text-left font-medium">Store</th>
-                    <th className="px-3 py-2 text-right font-medium">Leads</th>
-                    <th className="px-3 py-2 text-right font-medium">Leads prev</th>
-                    <th className="px-3 py-2 text-right font-medium">Sales</th>
-                    <th className="px-3 py-2 text-right font-medium">Sales prev</th>
-                    <th className="px-3 py-2 text-right font-medium">Ad spend</th>
-                    <th className="px-3 py-2 text-right font-medium">Spend prev</th>
-                    <th className="px-3 py-2" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r) => (
-                    <tr
-                      key={r.dealershipId}
-                      className={cn(
-                        "border-b border-border/40",
-                        r.lowConfidence && "bg-amber-500/5",
+        {/* Draft snapshots */}
+        {drafts.map((draft) => {
+          const issues = draftIssues(draft);
+          return (
+            <section key={draft.key} className="space-y-4 rounded-xl border border-border/60 p-6">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div className="flex flex-wrap items-end gap-3">
+                  <div>
+                    <div className="mb-1 text-xs font-medium text-muted-foreground">
+                      Report date{" "}
+                      {draft.dateDetected && (
+                        <span className="text-emerald-600">· read from screenshot</span>
                       )}
-                    >
-                      <td className="px-6 py-2">
-                        <div className="font-medium">{r.name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          read as “{r.sourceName}”
-                          {r.closeRate != null && ` · close ${r.closeRate}%`}
-                        </div>
-                      </td>
-                      {(
-                        [
-                          "leads",
-                          "leadsPrev",
-                          "sales",
-                          "salesPrev",
-                          "adSpend",
-                          "adSpendPrev",
-                        ] as const
-                      ).map((k) => (
-                        <td key={k} className="px-3 py-2 text-right">
-                          <Input
-                            value={r[k] ?? ""}
-                            onChange={(e) => editCell(r.dealershipId, k, e.target.value)}
-                            className="h-8 w-24 text-right text-sm"
-                            inputMode="decimal"
-                          />
-                        </td>
-                      ))}
-                      <td className="px-3 py-2 text-right">
-                        <button
-                          onClick={() => dropRow(r.dealershipId)}
-                          className="text-muted-foreground transition-colors hover:text-destructive"
-                          aria-label={`Remove ${r.name}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                    </div>
+                    <Input
+                      type="date"
+                      value={draft.reportDate}
+                      onChange={(e) => patchDraft(draft.key, { reportDate: e.target.value })}
+                      className="h-9 w-[170px]"
+                    />
+                  </div>
+                  <div>
+                    <div className="mb-1 text-xs font-medium text-muted-foreground">
+                      Period label
+                    </div>
+                    <Input
+                      value={draft.periodLabel}
+                      placeholder="e.g. Jul 1 – Jul 28"
+                      onChange={(e) => patchDraft(draft.key, { periodLabel: e.target.value })}
+                      className="h-9 w-[200px]"
+                    />
+                  </div>
+                  <div className="pb-2 text-xs text-muted-foreground">
+                    {draft.rows.length} stores · {draft.files.length} image
+                    {draft.files.length > 1 ? "s" : ""}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => discardDraft(draft.key)}
+                    className="text-muted-foreground"
+                  >
+                    Discard
+                  </Button>
+                  <Button onClick={() => void publishDraft(draft)} disabled={draft.saving}>
+                    {draft.saving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving…
+                      </>
+                    ) : (
+                      <>
+                        <Check className="mr-2 h-4 w-4" /> Publish snapshot
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
 
-            <div className="border-t border-border/60 px-6 py-4">
-              <div className="mb-1 text-xs font-medium text-muted-foreground">Notes</div>
-              <Textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Anything worth remembering about this import…"
-                className="min-h-[70px]"
-              />
-            </div>
-          </section>
-        )}
+              {draft.previews.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {draft.previews.map((p, i) => (
+                    <img
+                      key={p}
+                      src={p}
+                      alt={`Source screenshot ${i + 1} for ${fmtDate(draft.reportDate)}`}
+                      className="h-16 rounded-md border border-border/60 object-cover"
+                    />
+                  ))}
+                </div>
+              )}
+
+              {(draft.warnings.length > 0 || issues.length > 0) && (
+                <div className="space-y-1 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs text-amber-700">
+                  {[...draft.warnings, ...issues].map((w) => (
+                    <div key={w} className="flex items-start gap-2">
+                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      <span>{w}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {draft.unmatched.length > 0 && (
+                <div className="rounded-lg border border-border/60 p-4">
+                  <h3 className="text-sm font-semibold">
+                    Unmatched store names ({draft.unmatched.length})
+                  </h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Pick the right store — the alias is saved so future imports match
+                    automatically.
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    {draft.unmatched.map((u) => {
+                      const suggestions = fuzzySuggest(u.name, canonicalNames, 3);
+                      return (
+                        <div
+                          key={u.key}
+                          className="flex flex-wrap items-center gap-3 rounded-lg border border-border/60 px-3 py-2 text-sm"
+                        >
+                          <span className="font-medium">{u.name}</span>
+                          <ConfidenceBadge value={u.confidence} warnings={[]} />
+                          <span className="text-xs text-muted-foreground">
+                            {METRIC_LABEL[u.metric]} · {u.current ?? "—"} vs {u.previous ?? "—"}
+                          </span>
+                          <div className="ml-auto flex flex-wrap items-center gap-2">
+                            {suggestions.map((s) => (
+                              <button
+                                key={s.name}
+                                onClick={() => mapUnmatched(u.name, s.name)}
+                                className="rounded-full border border-border/60 px-2.5 py-1 text-xs transition-colors hover:bg-muted"
+                              >
+                                {s.name} · {(s.score * 100).toFixed(0)}%
+                              </button>
+                            ))}
+                            <Select onValueChange={(v) => mapUnmatched(u.name, v)}>
+                              <SelectTrigger className="h-8 w-[200px] text-xs">
+                                <SelectValue placeholder="Map to dealership" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {canonicalNames.map((n) => (
+                                  <SelectItem key={n} value={n}>
+                                    {n}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {draft.rows.length > 0 && (
+                <div className="overflow-x-auto rounded-lg border border-border/60">
+                  <table className="w-full text-sm">
+                    <thead className="text-xs text-muted-foreground">
+                      <tr className="border-b border-border/60">
+                        <th className="px-4 py-2 text-left font-medium">Store</th>
+                        <th className="px-3 py-2 text-left font-medium">Confidence</th>
+                        <th className="px-3 py-2 text-right font-medium">Leads</th>
+                        <th className="px-3 py-2 text-right font-medium">Leads prev</th>
+                        <th className="px-3 py-2 text-right font-medium">Sales</th>
+                        <th className="px-3 py-2 text-right font-medium">Sales prev</th>
+                        <th className="px-3 py-2 text-right font-medium">Ad spend</th>
+                        <th className="px-3 py-2 text-right font-medium">Spend prev</th>
+                        <th className="px-3 py-2" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {draft.rows.map((r) => (
+                        <tr
+                          key={r.dealershipId}
+                          className={cn(
+                            "border-b border-border/40",
+                            r.confidence < 70 && "bg-destructive/5",
+                            r.confidence >= 70 && r.confidence < 85 && "bg-amber-500/5",
+                          )}
+                        >
+                          <td className="px-4 py-2">
+                            <div className="font-medium">{r.name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              read as “{r.sourceName}”
+                              {r.closeRate != null && ` · close ${r.closeRate}%`}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2">
+                            <ConfidenceBadge value={r.confidence} warnings={r.warnings} />
+                            {r.warnings.length > 0 && (
+                              <ul className="mt-1 max-w-[220px] space-y-0.5 text-[11px] text-muted-foreground">
+                                {r.warnings.slice(0, 2).map((w) => (
+                                  <li key={w}>• {w}</li>
+                                ))}
+                                {r.warnings.length > 2 && (
+                                  <li>• +{r.warnings.length - 2} more</li>
+                                )}
+                              </ul>
+                            )}
+                          </td>
+                          {(
+                            [
+                              "leads",
+                              "leadsPrev",
+                              "sales",
+                              "salesPrev",
+                              "adSpend",
+                              "adSpendPrev",
+                            ] as const
+                          ).map((k) => (
+                            <td key={k} className="px-3 py-2 text-right">
+                              <Input
+                                value={r[k] ?? ""}
+                                onChange={(e) =>
+                                  editCell(draft.key, r.dealershipId, k, e.target.value)
+                                }
+                                className="h-8 w-24 text-right text-sm"
+                                inputMode="decimal"
+                              />
+                            </td>
+                          ))}
+                          <td className="px-3 py-2 text-right">
+                            <button
+                              onClick={() => dropRow(draft.key, r.dealershipId)}
+                              className="text-muted-foreground transition-colors hover:text-destructive"
+                              aria-label={`Remove ${r.name}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              <div>
+                <div className="mb-1 text-xs font-medium text-muted-foreground">Notes</div>
+                <Textarea
+                  value={draft.notes}
+                  onChange={(e) => patchDraft(draft.key, { notes: e.target.value })}
+                  placeholder="Anything worth remembering about this import…"
+                  className="min-h-[70px]"
+                />
+              </div>
+            </section>
+          );
+        })}
 
         {/* History */}
         <section className="rounded-xl border border-border/60">
