@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/select";
 import { ArrowDown, ArrowUp, Flame, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { StoreDrilldown } from "@/components/StoreDrilldown";
+import { STATUS_LABEL, useActionPlans, type ActionPlan } from "@/lib/action-plans";
 
 export const Route = createFileRoute("/priority")({
   head: () => ({
@@ -50,6 +52,10 @@ function PriorityPage() {
   const [brand, setBrand] = useState("All");
   const [bucket, setBucket] = useState<Bucket>("all");
   const [q, setQ] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [onlyOpen, setOnlyOpen] = useState(false);
+  const plansApi = useActionPlans();
+  const { plans } = plansApi;
 
   const regions = useMemo(
     () => ["All", ...Array.from(new Set(metrics.map((m) => m.region)))],
@@ -68,16 +74,21 @@ function PriorityPage() {
         if (q && !m.name.toLowerCase().includes(q.toLowerCase())) return false;
         const b = tier(m.priorityScore);
         if (bucket !== "all" && b !== bucket) return false;
+        if (onlyOpen && plans[m.id]?.status === "addressed") return false;
         return true;
       })
       .sort((a, b) => b.priorityScore - a.priorityScore);
-  }, [metrics, region, brand, q, bucket]);
+  }, [metrics, region, brand, q, bucket, onlyOpen, plans]);
 
   const tierCounts = useMemo(() => {
     const c = { high: 0, med: 0, low: 0 };
     for (const m of metrics) c[tier(m.priorityScore)]++;
     return c;
   }, [metrics]);
+
+  const selected = metrics.find((m) => m.id === selectedId);
+  const rankIndex = ranked.findIndex((m) => m.id === selectedId);
+  const selectedRank = rankIndex >= 0 ? rankIndex + 1 : null;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -193,6 +204,17 @@ function PriorityPage() {
               ))}
             </SelectContent>
           </Select>
+          <button
+            onClick={() => setOnlyOpen((v) => !v)}
+            className={cn(
+              "rounded-full border px-3 py-1.5 text-xs transition-colors",
+              onlyOpen
+                ? "border-foreground/20 bg-muted text-foreground"
+                : "border-border/60 text-muted-foreground hover:bg-muted/50",
+            )}
+          >
+            Hide addressed
+          </button>
           <span className="ml-auto text-xs text-muted-foreground">
             {ranked.length} of {metrics.length}
           </span>
@@ -200,7 +222,13 @@ function PriorityPage() {
 
         <div className="space-y-2">
           {ranked.map((d, i) => (
-            <PriorityRow key={d.id} rank={i + 1} d={d} />
+            <PriorityRow
+              key={d.id}
+              rank={i + 1}
+              d={d}
+              plan={plans[d.id]}
+              onOpen={() => setSelectedId(d.id)}
+            />
           ))}
           {ranked.length === 0 && (
             <div className="rounded-2xl border border-border/60 bg-card p-8 text-center text-sm text-muted-foreground">
@@ -209,13 +237,45 @@ function PriorityPage() {
           )}
         </div>
       </main>
+
+      <StoreDrilldown
+        open={selected != null}
+        onOpenChange={(v) => !v && setSelectedId(null)}
+        dealership={selected ?? null}
+        rank={selectedRank}
+        plan={selected ? plans[selected.id] : undefined}
+        onStatus={(s) => selected && plansApi.setStatus(selected.id, selected.priorityScore, s)}
+        onOwner={(o) => selected && plansApi.setOwner(selected.id, selected.priorityScore, o)}
+        onAddStep={(t) => selected && plansApi.addStep(selected.id, selected.priorityScore, t)}
+        onToggleStep={(id) =>
+          selected && plansApi.toggleStep(selected.id, selected.priorityScore, id)
+        }
+        onRemoveStep={(id) =>
+          selected && plansApi.removeStep(selected.id, selected.priorityScore, id)
+        }
+        onAddNote={(t) => selected && plansApi.addNote(selected.id, selected.priorityScore, t)}
+        onRemoveNote={(id) =>
+          selected && plansApi.removeNote(selected.id, selected.priorityScore, id)
+        }
+        onReset={() => selected && plansApi.resetPlan(selected.id)}
+      />
     </div>
   );
 }
 
 /* -------------- Row -------------- */
 
-function PriorityRow({ rank, d }: { rank: number; d: DealershipMetrics }) {
+function PriorityRow({
+  rank,
+  d,
+  plan,
+  onOpen,
+}: {
+  rank: number;
+  d: DealershipMetrics;
+  plan?: ActionPlan;
+  onOpen: () => void;
+}) {
   const contrib = {
     leads: PRIORITY_WEIGHTS.leads * d.leadsScore,
     sales: PRIORITY_WEIGHTS.sales * d.salesScore,
@@ -231,11 +291,12 @@ function PriorityRow({ rank, d }: { rank: number; d: DealershipMetrics }) {
       : "border-border/60";
 
   return (
-    <Link
-      to="/"
+    <button
+      onClick={onOpen}
       className={cn(
-        "group grid grid-cols-[56px,1fr,340px,200px] items-center gap-6 rounded-2xl border bg-card px-5 py-4 transition-all hover:shadow-sm",
+        "group grid w-full grid-cols-[56px,1fr,340px,200px] items-center gap-6 rounded-2xl border bg-card px-5 py-4 text-left transition-all hover:shadow-sm",
         border,
+        plan?.status === "addressed" && "opacity-70",
       )}
     >
       <div className="flex flex-col items-center">
@@ -251,6 +312,20 @@ function PriorityRow({ rank, d }: { rank: number; d: DealershipMetrics }) {
         <div className="flex items-center gap-2">
           <span className="truncate font-medium">{d.name}</span>
           {t === "high" && <Flame className="h-3.5 w-3.5 text-rose-600" />}
+          {plan && (
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                plan.status === "addressed"
+                  ? "bg-emerald-50 text-emerald-700"
+                  : plan.status === "in_progress"
+                  ? "bg-amber-50 text-amber-700"
+                  : "bg-muted text-muted-foreground",
+              )}
+            >
+              {STATUS_LABEL[plan.status]}
+            </span>
+          )}
         </div>
         <div className="mt-0.5 text-xs text-muted-foreground">
           {d.city} · {d.region} · {d.brand}
@@ -315,7 +390,7 @@ function PriorityRow({ rank, d }: { rank: number; d: DealershipMetrics }) {
           <MiniMetric label="CPS" value={formatCurrency(d.cps)} />
         </div>
       </div>
-    </Link>
+    </button>
   );
 }
 
