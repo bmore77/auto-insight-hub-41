@@ -376,40 +376,40 @@ function Charts({ d }: { d: DealershipMetrics }) {
       <h3 className="mb-3 text-sm font-medium tracking-tight">Trends</h3>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <ChartCard title="Leads" value={d.leads.toLocaleString()} delta={formatDelta(d.leadsDelta)} bad={d.leadsDelta < 0}>
-          <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -18 }}>
+          <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -10 }}>
             <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeDasharray="2 4" />
             <XAxis dataKey="week" {...axis} />
-            <YAxis {...axis} width={38} />
+            <YAxis {...axis} width={46} />
             <Tooltip {...tooltipStyle} />
             <Area type="monotone" dataKey="leads" stroke="#e11d48" fill="#e11d48" fillOpacity={0.08} strokeWidth={2} />
           </AreaChart>
         </ChartCard>
 
         <ChartCard title="Sales" value={d.sales.toLocaleString()} delta={formatDelta(d.salesDelta)} bad={d.salesDelta < 0}>
-          <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -18 }}>
+          <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -10 }}>
             <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeDasharray="2 4" />
             <XAxis dataKey="week" {...axis} />
-            <YAxis {...axis} width={38} />
+            <YAxis {...axis} width={46} />
             <Tooltip {...tooltipStyle} />
             <Area type="monotone" dataKey="sales" stroke="#ea580c" fill="#ea580c" fillOpacity={0.08} strokeWidth={2} />
           </AreaChart>
         </ChartCard>
 
         <ChartCard title="Closing %" value={formatPct(d.closeRate)} delta={formatDeltaPt(d.closeRateDelta)} bad={d.closeRateDelta < 0}>
-          <LineChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -18 }}>
+          <LineChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -10 }}>
             <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeDasharray="2 4" />
             <XAxis dataKey="week" {...axis} />
-            <YAxis {...axis} width={38} tickFormatter={(v: number) => `${v.toFixed(0)}%`} />
+            <YAxis {...axis} width={46} tickFormatter={(v: number) => `${v.toFixed(0)}%`} />
             <Tooltip {...tooltipStyle} formatter={(v: number) => `${v.toFixed(1)}%`} />
             <Line type="monotone" dataKey="close" stroke="#d97706" strokeWidth={2} dot={false} />
           </LineChart>
         </ChartCard>
 
         <ChartCard title="Ad spend & CPL" value={formatCurrency(d.adSpend)} delta={formatDelta(d.cplDelta)} bad={d.cplDelta > 0}>
-          <LineChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -18 }}>
+          <LineChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -10 }}>
             <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeDasharray="2 4" />
             <XAxis dataKey="week" {...axis} />
-            <YAxis {...axis} width={38} />
+            <YAxis {...axis} width={46} />
             <YAxis yAxisId="r" orientation="right" {...axis} width={34} />
             <Tooltip {...tooltipStyle} formatter={(v: number) => v.toFixed(0)} />
             <Line type="monotone" dataKey="spend" stroke="#0284c7" strokeWidth={2} dot={false} />
