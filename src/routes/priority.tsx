@@ -86,9 +86,9 @@ function PriorityPage() {
     return c;
   }, [metrics]);
 
-  const selectedIndex = ranked.findIndex((m) => m.id === selectedId);
-  const selected = selectedIndex >= 0 ? ranked[selectedIndex] : undefined;
-  const selectedRank = selectedIndex >= 0 ? selectedIndex + 1 : null;
+  const selected = metrics.find((m) => m.id === selectedId);
+  const rankIndex = ranked.findIndex((m) => m.id === selectedId);
+  const selectedRank = rankIndex >= 0 ? rankIndex + 1 : null;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
