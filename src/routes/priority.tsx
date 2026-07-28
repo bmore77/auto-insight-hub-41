@@ -386,7 +386,7 @@ function PriorityRow({
           <MiniMetric label="CPS" value={formatCurrency(d.cps)} />
         </div>
       </div>
-    </Link>
+    </button>
   );
 }
 
