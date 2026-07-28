@@ -14,7 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      action_plans: {
+        Row: {
+          created_at: string
+          dealership_id: string
+          notes: Json
+          owner: string
+          score_when_ranked: number | null
+          status: string
+          steps: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dealership_id: string
+          notes?: Json
+          owner?: string
+          score_when_ranked?: number | null
+          status?: string
+          steps?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dealership_id?: string
+          notes?: Json
+          owner?: string
+          score_when_ranked?: number | null
+          status?: string
+          steps?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
