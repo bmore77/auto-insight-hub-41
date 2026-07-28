@@ -1,7 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import {
-  computeMetrics,
   formatCurrency,
   formatDelta,
   formatDeltaPt,
@@ -9,6 +8,8 @@ import {
   PRIORITY_WEIGHTS,
   type DealershipMetrics,
 } from "@/lib/dealerships";
+import { useDashboardData } from "@/lib/snapshots";
+import { SnapshotPicker } from "@/components/SnapshotPicker";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -47,7 +48,8 @@ export const Route = createFileRoute("/priority")({
 type Bucket = "all" | "high" | "med" | "low";
 
 function PriorityPage() {
-  const metrics = useMemo(() => computeMetrics(), []);
+  const dash = useDashboardData();
+  const metrics = dash.metrics;
   const [region, setRegion] = useState("All");
   const [brand, setBrand] = useState("All");
   const [bucket, setBucket] = useState<Bucket>("all");
@@ -122,7 +124,20 @@ function PriorityPage() {
             >
               Data
             </Link>
+            <Link
+              to="/import"
+              className="rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              Import
+            </Link>
           </nav>
+          <SnapshotPicker
+            snapshots={dash.snapshots}
+            selected={dash.selected}
+            onSelect={dash.selectId}
+            source={dash.source}
+            className="ml-3"
+          />
         </div>
       </header>
 

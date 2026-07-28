@@ -219,6 +219,53 @@ const RAW: Dealership[] = META.map((m) => {
   };
 });
 
+/** Canonical roster with embedded (fallback) metrics. */
+export const ROSTER: Dealership[] = RAW;
+export const ROSTER_BY_ID: Record<string, Dealership> = Object.fromEntries(
+  RAW.map((d) => [d.id, d]),
+);
+export const canonicalNames = () => RAW.map((d) => d.name);
+
+/** Numbers imported from a screenshot snapshot for one store. */
+export type MetricInput = {
+  dealershipId: string;
+  leads: number | null;
+  leadsPrev: number | null;
+  sales: number | null;
+  salesPrev: number | null;
+  adSpend: number | null;
+  adSpendPrev: number | null;
+};
+
+/**
+ * Build a dealership list from imported snapshot numbers. Stores not present in
+ * the snapshot are dropped; blank metrics fall back to the embedded value so a
+ * leads-only screenshot still ranks.
+ */
+export function buildDealershipsFromMetrics(
+  rows: MetricInput[],
+  trendById: Record<string, number[]> = {},
+): Dealership[] {
+  const out: Dealership[] = [];
+  for (const r of rows) {
+    const base = ROSTER_BY_ID[r.dealershipId];
+    if (!base) continue;
+    const leads = r.leads ?? base.leads;
+    const leadsPrev = r.leadsPrev ?? base.leadsPrev;
+    const sales = r.sales ?? base.sales;
+    const salesPrev = r.salesPrev ?? base.salesPrev;
+    const adSpend = r.adSpend ?? base.adSpend;
+    const adSpendPrev = r.adSpendPrev ?? base.adSpendPrev;
+    const history = trendById[r.dealershipId];
+    out.push({
+      ...base,
+      leads, leadsPrev, sales, salesPrev, adSpend, adSpendPrev,
+      trend: history && history.length >= 3 ? history : mkTrend(leadsPrev, leads),
+    });
+  }
+  return out;
+}
+
 const pctDelta = (curr: number, prev: number) => (prev === 0 ? 0 : (curr - prev) / prev);
 
 export function computeMetrics(list: Dealership[] = RAW): DealershipMetrics[] {

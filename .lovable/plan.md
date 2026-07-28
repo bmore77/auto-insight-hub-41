@@ -1,69 +1,43 @@
-# Auto Canada — Dealership Priority Dashboard
+## Screenshot → data import (bridge until Tableau connects)
 
-A clean, Notion/Apple-inspired reporting dashboard that surfaces which stores need the most help, ranked primarily by lead declines vs prior period, with sales, close rate, and ad spend context.
+Goal: drop a Tableau screenshot for a given day, have it parsed into structured store metrics, review/correct it, save it as a dated snapshot in the backend, and have the dashboard read from those snapshots with date-range and period-comparison filtering.
 
-## Landing view (Hybrid)
+### 1. Storage
+- New private storage bucket `tableau-screenshots` for the raw images (audit trail, re-parse later).
+- New tables:
+  - `snapshots` — one row per import: report date, period label (e.g. "Jul 1–28"), source view (Store / Lead Source / Inventory Type), image path, status (`draft` / `published`), notes.
+  - `snapshot_metrics` — one row per store per snapshot: dealership id (canonical), raw source name, leads, leads_prev, sales, sales_prev, ad_spend, ad_spend_prev, close_rate columns as derived.
+- Grants + RLS matching the current open-workspace model used by action plans (no login yet).
 
-Top: **Priority Action Hero**
-- Network KPI strip: Total Leads, Total Sales, Network Close %, Total Ad Spend, blended CPL / CPS — each with delta vs prior period (green/red, subtle).
-- Period selector (This Month / Last Month / QTD / YTD / Custom) + Compare-to (Previous Period / Same Period Last Year).
-- "Stores Needing Help" — top 5 dealership cards ranked by composite priority score. Each card shows: rank, dealership name, priority reason chips ("Leads ▼ 28%", "Close % ▼ 4pt", "CPL ▲ 42%"), sparkline of leads trend, and a "View store" affordance.
+### 2. Import flow (`/import`)
+1. **Upload** — drag one or more screenshots, pick the report date and period label.
+2. **Parse** — the image goes to the AI vision model (Lovable AI, no key needed) with a strict schema prompt: return rows of `{ name, current, previous, diff }` per table detected, plus which metric each table represents (Leads / Sales / Close Rate / Ad Spend).
+3. **Reconcile** — parsed names run through the existing `mapping.ts` fuzzy matcher, so aliases like "Northland VW" resolve to the canonical roster. Unmatched names surface with the same suggestion chips already built on the Data page, mappable inline.
+4. **Review grid** — editable table of every parsed row with the source image side-by-side; confidence flags on cells the model was unsure about, plus arithmetic checks (does diff % match current vs previous?). Nothing is trusted blindly — you approve before it saves.
+5. **Publish** — writes the snapshot + metrics rows; the raw image stays in storage.
 
-Bottom: **Full Dealership Table**
-- Sortable, filterable rows for every dealership.
-- Columns: Dealership · Leads (Δ%) · Sales (Δ%) · Close % (Δ pt) · Ad Spend (Δ%) · CPL · CPS · Priority Score.
-- Column filters: Region, Brand, Store type. Search box. Column sort. Row click opens a store detail drawer.
+### 3. Dashboard wiring
+- A global date/period control in the shared header: pick a snapshot as "current" and another as "compare to" (defaults: latest vs previous snapshot).
+- `dealerships.ts` changes from a hardcoded dataset to a resolver: if published snapshots exist, metrics come from the database; otherwise it falls back to today's embedded roster data so nothing goes blank.
+- The roster (69 stores, region/brand) stays code-side as the canonical list; snapshots only supply the numbers.
+- Priority scoring, Coverage, Validation, and the drilldown charts all read from the selected snapshot pair — no formula changes.
+- Trend charts stop being simulated once 3+ snapshots exist: real point-per-snapshot lines, with the simulated sparkline used only when there's insufficient history.
 
-## Store detail drawer
-- Header: dealership, region, brand.
-- KPI tiles with period-over-period deltas.
-- Charts: Leads vs Sales (dual-axis line), Close % trend, Ad Spend vs CPL trend.
-- Why it's flagged: bulleted diagnostic based on which sub-scores triggered priority.
+### 4. Snapshot management
+- `/import` gets a history list: every snapshot with date, row count, stores covered, unmatched count, and actions to view the original screenshot, re-parse, edit, unpublish, or delete.
 
-## Priority scoring (v1)
-Primary weight on leads decline, with supporting signals so a store that's bleeding leads AND wasting ad spend ranks above one with only a soft lead dip.
+### 5. Tableau handoff later
+Because everything lands in `snapshot_metrics`, swapping to a real Tableau/CSV feed later means writing to the same table — the dashboard, scoring and history stay untouched.
 
-```text
-priority = 0.55 * leadsDropScore
-         + 0.20 * salesDropScore
-         + 0.15 * closeRateDropScore
-         + 0.10 * adSpendEfficiencyScore   // penalizes rising CPL/CPS
-```
-Each sub-score normalized 0–100 across the network for the selected period.
+### Technical notes
+- Parsing runs in a `createServerFn` calling the AI gateway with a Gemini vision model; image passed as a base64 data URL or signed storage URL.
+- Multi-metric screenshots (the 3-table layouts you shared) are handled in one pass — the model returns each table separately, tagged by metric.
+- Idempotency: re-importing the same date + view replaces that snapshot's metric rows rather than duplicating.
+- Deltas (`prev` columns) come straight from the screenshot's "previous" column, so period-over-period comparison works from the very first import.
 
-## Design system (Notion / Apple)
-- Neutral canvas: near-white background, soft dividers, generous whitespace.
-- Typography: one geometric sans (e.g., Inter/SF-like) — large numbers, small uppercase labels, restrained weights.
-- Color: monochrome UI with two accents only — subtle green for positive delta, muted red for negative. No gradients, no heavy shadows.
-- Cards: 1px hairline borders, 12–16px radius, quiet hover states.
-- Motion: minimal — 150ms ease for hover/expand.
-- Charts: thin strokes, no gridlines beyond a baseline, tooltips on hover.
-
-## Data
-Since the Tableau export isn't attached yet, v1 ships with **realistic mock data** shaped like the real feed so the UI, ranking, and interactions are fully working. Swapping to real data means replacing one typed dataset file.
-
-Expected schema per dealership per period:
-```text
-dealership_id, name, region, brand,
-leads, leads_prev,
-sales, sales_prev,
-ad_spend, ad_spend_prev,
-close_rate = sales/leads,
-cpl = ad_spend/leads,
-cps = ad_spend/sales
-```
-
-## Technical notes
-- TanStack Start route `/` becomes the dashboard (replaces placeholder index).
-- Store detail is a modal drawer on the same route (no separate page needed for v1).
-- Mock data + scoring live in `src/lib/dealerships.ts` with typed periods so the CSV import later is a drop-in.
-- Charts via Recharts (line + sparkline). Tables built with shadcn/ui + TanStack Table for sort/filter.
-- All colors/spacing via semantic tokens in `src/styles.css` — no hardcoded hex in components.
-
-## Out of scope for v1
-- Auth / multi-user (add later with Lovable Cloud if needed).
-- Writing back to Tableau.
-- Automated CSV upload UI (v2 — for now data is a typed module).
-
-## Next step after approval
-Build v1 with mock data matching the schema above. When you share the Tableau dashboard screenshot or a CSV export, I'll map fields exactly and swap the mock module for the real dataset.
+### Rollout order
+1. Tables + bucket
+2. Upload & parse server function
+3. Review/edit grid + publish
+4. Snapshot history
+5. Dashboard date-range switch + fallback to embedded data

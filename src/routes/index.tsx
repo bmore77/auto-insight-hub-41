@@ -10,7 +10,6 @@ import {
   CartesianGrid,
 } from "recharts";
 import {
-  computeMetrics,
   networkTotals,
   formatCurrency,
   formatDelta,
@@ -18,6 +17,8 @@ import {
   formatPct,
   type DealershipMetrics,
 } from "@/lib/dealerships";
+import { useDashboardData } from "@/lib/snapshots";
+import { SnapshotPicker } from "@/components/SnapshotPicker";
 import {
   Sheet,
   SheetContent,
@@ -71,7 +72,8 @@ function Dashboard() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [selected, setSelected] = useState<DealershipMetrics | null>(null);
 
-  const metrics = useMemo(() => computeMetrics(), []);
+  const dash = useDashboardData();
+  const metrics = dash.metrics;
 
   const regions = useMemo(
     () => ["All", ...Array.from(new Set(metrics.map((m) => m.region)))],
@@ -155,7 +157,19 @@ function Dashboard() {
               >
                 Data
               </Link>
+              <Link
+                to="/import"
+                className="rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                Import
+              </Link>
             </nav>
+            <SnapshotPicker
+              snapshots={dash.snapshots}
+              selected={dash.selected}
+              onSelect={dash.selectId}
+              source={dash.source}
+            />
             <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
               <SelectTrigger className="h-9 w-[150px] border-border/60 bg-background text-sm">
                 <SelectValue />

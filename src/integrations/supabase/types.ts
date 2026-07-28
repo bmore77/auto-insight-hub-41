@@ -47,6 +47,95 @@ export type Database = {
         }
         Relationships: []
       }
+      snapshot_metrics: {
+        Row: {
+          ad_spend: number | null
+          ad_spend_prev: number | null
+          created_at: string
+          dealership_id: string
+          id: string
+          leads: number | null
+          leads_prev: number | null
+          sales: number | null
+          sales_prev: number | null
+          snapshot_id: string
+          source_name: string
+          updated_at: string
+        }
+        Insert: {
+          ad_spend?: number | null
+          ad_spend_prev?: number | null
+          created_at?: string
+          dealership_id: string
+          id?: string
+          leads?: number | null
+          leads_prev?: number | null
+          sales?: number | null
+          sales_prev?: number | null
+          snapshot_id: string
+          source_name?: string
+          updated_at?: string
+        }
+        Update: {
+          ad_spend?: number | null
+          ad_spend_prev?: number | null
+          created_at?: string
+          dealership_id?: string
+          id?: string
+          leads?: number | null
+          leads_prev?: number | null
+          sales?: number | null
+          sales_prev?: number | null
+          snapshot_id?: string
+          source_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "snapshot_metrics_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "snapshots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      snapshots: {
+        Row: {
+          created_at: string
+          id: string
+          image_paths: Json
+          notes: string
+          period_label: string
+          report_date: string
+          source_view: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_paths?: Json
+          notes?: string
+          period_label?: string
+          report_date: string
+          source_view?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_paths?: Json
+          notes?: string
+          period_label?: string
+          report_date?: string
+          source_view?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
