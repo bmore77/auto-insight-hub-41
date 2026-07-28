@@ -157,7 +157,19 @@ function Dashboard() {
               >
                 Data
               </Link>
+              <Link
+                to="/import"
+                className="rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                Import
+              </Link>
             </nav>
+            <SnapshotPicker
+              snapshots={dash.snapshots}
+              selected={dash.selected}
+              onSelect={dash.selectId}
+              source={dash.source}
+            />
             <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
               <SelectTrigger className="h-9 w-[150px] border-border/60 bg-background text-sm">
                 <SelectValue />
