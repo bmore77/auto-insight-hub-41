@@ -71,7 +71,8 @@ function Dashboard() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [selected, setSelected] = useState<DealershipMetrics | null>(null);
 
-  const metrics = useMemo(() => computeMetrics(), []);
+  const dash = useDashboardData();
+  const metrics = dash.metrics;
 
   const regions = useMemo(
     () => ["All", ...Array.from(new Set(metrics.map((m) => m.region)))],
