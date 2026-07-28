@@ -47,7 +47,8 @@ export const Route = createFileRoute("/priority")({
 type Bucket = "all" | "high" | "med" | "low";
 
 function PriorityPage() {
-  const metrics = useMemo(() => computeMetrics(), []);
+  const dash = useDashboardData();
+  const metrics = dash.metrics;
   const [region, setRegion] = useState("All");
   const [brand, setBrand] = useState("All");
   const [bucket, setBucket] = useState<Bucket>("all");
