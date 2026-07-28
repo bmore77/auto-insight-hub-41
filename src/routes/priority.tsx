@@ -200,6 +200,17 @@ function PriorityPage() {
               ))}
             </SelectContent>
           </Select>
+          <button
+            onClick={() => setOnlyOpen((v) => !v)}
+            className={cn(
+              "rounded-full border px-3 py-1.5 text-xs transition-colors",
+              onlyOpen
+                ? "border-foreground/20 bg-muted text-foreground"
+                : "border-border/60 text-muted-foreground hover:bg-muted/50",
+            )}
+          >
+            Hide addressed
+          </button>
           <span className="ml-auto text-xs text-muted-foreground">
             {ranked.length} of {metrics.length}
           </span>
@@ -207,7 +218,13 @@ function PriorityPage() {
 
         <div className="space-y-2">
           {ranked.map((d, i) => (
-            <PriorityRow key={d.id} rank={i + 1} d={d} />
+            <PriorityRow
+              key={d.id}
+              rank={i + 1}
+              d={d}
+              plan={plans[d.id]}
+              onOpen={() => setSelectedId(d.id)}
+            />
           ))}
           {ranked.length === 0 && (
             <div className="rounded-2xl border border-border/60 bg-card p-8 text-center text-sm text-muted-foreground">
@@ -216,13 +233,45 @@ function PriorityPage() {
           )}
         </div>
       </main>
+
+      <StoreDrilldown
+        open={selected != null}
+        onOpenChange={(v) => !v && setSelectedId(null)}
+        dealership={selected ?? null}
+        rank={selectedRank}
+        plan={selected ? plans[selected.id] : undefined}
+        onStatus={(s) => selected && plansApi.setStatus(selected.id, selected.priorityScore, s)}
+        onOwner={(o) => selected && plansApi.setOwner(selected.id, selected.priorityScore, o)}
+        onAddStep={(t) => selected && plansApi.addStep(selected.id, selected.priorityScore, t)}
+        onToggleStep={(id) =>
+          selected && plansApi.toggleStep(selected.id, selected.priorityScore, id)
+        }
+        onRemoveStep={(id) =>
+          selected && plansApi.removeStep(selected.id, selected.priorityScore, id)
+        }
+        onAddNote={(t) => selected && plansApi.addNote(selected.id, selected.priorityScore, t)}
+        onRemoveNote={(id) =>
+          selected && plansApi.removeNote(selected.id, selected.priorityScore, id)
+        }
+        onReset={() => selected && plansApi.resetPlan(selected.id)}
+      />
     </div>
   );
 }
 
 /* -------------- Row -------------- */
 
-function PriorityRow({ rank, d }: { rank: number; d: DealershipMetrics }) {
+function PriorityRow({
+  rank,
+  d,
+  plan,
+  onOpen,
+}: {
+  rank: number;
+  d: DealershipMetrics;
+  plan?: ActionPlan;
+  onOpen: () => void;
+}) {
   const contrib = {
     leads: PRIORITY_WEIGHTS.leads * d.leadsScore,
     sales: PRIORITY_WEIGHTS.sales * d.salesScore,
@@ -238,11 +287,12 @@ function PriorityRow({ rank, d }: { rank: number; d: DealershipMetrics }) {
       : "border-border/60";
 
   return (
-    <Link
-      to="/"
+    <button
+      onClick={onOpen}
       className={cn(
-        "group grid grid-cols-[56px,1fr,340px,200px] items-center gap-6 rounded-2xl border bg-card px-5 py-4 transition-all hover:shadow-sm",
+        "group grid w-full grid-cols-[56px,1fr,340px,200px] items-center gap-6 rounded-2xl border bg-card px-5 py-4 text-left transition-all hover:shadow-sm",
         border,
+        plan?.status === "addressed" && "opacity-70",
       )}
     >
       <div className="flex flex-col items-center">
