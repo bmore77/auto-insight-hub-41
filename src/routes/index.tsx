@@ -10,7 +10,6 @@ import {
   CartesianGrid,
 } from "recharts";
 import {
-  computeMetrics,
   networkTotals,
   formatCurrency,
   formatDelta,
@@ -18,6 +17,8 @@ import {
   formatPct,
   type DealershipMetrics,
 } from "@/lib/dealerships";
+import { useDashboardData } from "@/lib/snapshots";
+import { SnapshotPicker } from "@/components/SnapshotPicker";
 import {
   Sheet,
   SheetContent,
