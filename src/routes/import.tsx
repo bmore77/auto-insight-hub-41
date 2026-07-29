@@ -233,29 +233,51 @@ function ImportPage() {
   }, []);
   const canonicalNames = useMemo(() => ROSTER.map((d) => d.name), []);
 
+  /** Returns the best match plus runner-up candidates for a raw name. */
   const matchStore = useCallback(
     (raw: string) => {
       const viaMapping = resolveName(raw, mapping);
+      const suggestions = fuzzySuggest(viaMapping, canonicalNames, 5);
+      const candidates: MatchCandidate[] = suggestions
+        .map((s) => {
+          const hit = canonicalIndex.get(normalizeName(s.name));
+          return hit ? { id: hit.id, name: hit.name, score: Math.round(s.score * 100) } : null;
+        })
+        .filter((c): c is MatchCandidate => c !== null);
+
       const exact = canonicalIndex.get(normalizeName(viaMapping));
-      if (exact) return exact;
-      const [best] = fuzzySuggest(viaMapping, canonicalNames, 1);
-      if (best && best.score >= 0.62) {
-        return canonicalIndex.get(normalizeName(best.name)) ?? null;
+      if (exact) {
+        return {
+          hit: exact,
+          matchScore: 100,
+          candidates: candidates.filter((c) => c.id !== exact.id).slice(0, 3),
+        };
       }
-      return null;
+      const [best] = suggestions;
+      if (best && best.score >= 0.62) {
+        const hit = canonicalIndex.get(normalizeName(best.name));
+        if (hit) {
+          return {
+            hit,
+            matchScore: Math.round(best.score * 100),
+            candidates: candidates.filter((c) => c.id !== hit.id).slice(0, 3),
+          };
+        }
+      }
+      return { hit: null, matchScore: 0, candidates: candidates.slice(0, 3) };
     },
     [mapping, canonicalIndex, canonicalNames],
   );
 
   const buildReview = useCallback(
     (parsedTables: ParsedTable[]) => {
-      const byStore = new Map<string, ReviewRow & { _scores: number[] }>();
+      const byKey = new Map<string, ReviewRow & { _scores: number[] }>();
       const misses: UnmatchedRow[] = [];
 
       for (const t of parsedTables) {
         const metric = t.metric as MetricKey;
         for (const [i, r] of t.rows.entries()) {
-          const hit = matchStore(r.name);
+          const { hit, matchScore, candidates } = matchStore(r.name);
           if (!hit) {
             misses.push({
               key: `${metric}-${i}-${r.name}`,
@@ -264,15 +286,18 @@ function ImportPage() {
               current: r.current,
               previous: r.previous,
               confidence: r.confidence,
+              candidates,
             });
             continue;
           }
+          const rowKey = `${hit.id}::${normalizeName(r.name)}`;
           const row =
-            byStore.get(hit.id) ??
+            byKey.get(rowKey) ??
             ({
               dealershipId: hit.id,
               name: hit.name,
               sourceName: r.name,
+              sourceNames: [r.name],
               leads: null,
               leadsPrev: null,
               sales: null,
@@ -281,30 +306,41 @@ function ImportPage() {
               adSpendPrev: null,
               closeRate: null,
               confidence: 100,
+              matchScore,
+              candidates,
+              fieldConf: {},
               warnings: [],
               _scores: [],
-            } as ReviewRow & { _scores: number[] });
+            } satisfies ReviewRow & { _scores: number[] });
 
           row._scores.push(r.confidence);
           for (const w of r.warnings) row.warnings.push(`${METRIC_LABEL[metric]}: ${w}`);
 
+          const put = (field: MetricField, value: number | null) => {
+            const prevConf = row.fieldConf[field];
+            if (value == null) return;
+            if (prevConf != null && prevConf >= r.confidence && row[field] != null) return;
+            (row[field] as number | null) = value;
+            row.fieldConf[field] = r.confidence;
+          };
+
           if (metric === "leads") {
-            row.leads = r.current;
-            row.leadsPrev = r.previous;
+            put("leads", r.current);
+            put("leadsPrev", r.previous);
           } else if (metric === "sales") {
-            row.sales = r.current;
-            row.salesPrev = r.previous;
+            put("sales", r.current);
+            put("salesPrev", r.previous);
           } else if (metric === "adSpend") {
-            row.adSpend = r.current;
-            row.adSpendPrev = r.previous;
+            put("adSpend", r.current);
+            put("adSpendPrev", r.previous);
           } else if (metric === "closeRate") {
-            row.closeRate = r.current;
+            put("closeRate", r.current);
           }
-          byStore.set(hit.id, row);
+          byKey.set(rowKey, row);
         }
       }
 
-      const rows = Array.from(byStore.values())
+      const rows = Array.from(byKey.values())
         .map(({ _scores, ...row }) => ({
           ...row,
           confidence: _scores.length
@@ -317,6 +353,7 @@ function ImportPage() {
     },
     [matchStore],
   );
+
 
   // Re-run matching whenever the user saves a new alias.
   useEffect(() => {
