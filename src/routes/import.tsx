@@ -531,7 +531,7 @@ function ImportPage() {
   const patchDraft = (key: string, patch: Partial<Draft>) =>
     setDrafts((prev) => prev.map((d) => (d.key === key ? { ...d, ...patch } : d)));
 
-  const editCell = (key: string, id: string, field: keyof ReviewRow, value: string) => {
+  const editCell = (key: string, rowId: string, field: keyof ReviewRow, value: string) => {
     const num = value.trim() === "" ? null : Number(value.replace(/[^0-9.-]/g, ""));
     setDrafts((prev) =>
       prev.map((d) =>
@@ -539,11 +539,12 @@ function ImportPage() {
           ? {
               ...d,
               rows: d.rows.map((r) =>
-                r.dealershipId === id
+                r.rowId === rowId
                   ? {
                       ...r,
                       [field]: Number.isFinite(num as number) ? num : null,
                       confidence: 100,
+                      fieldConf: { ...r.fieldConf, [field]: 100 },
                       warnings: [],
                     }
                   : r,
@@ -554,11 +555,9 @@ function ImportPage() {
     );
   };
 
-  const dropRow = (key: string, id: string) =>
+  const dropRow = (key: string, rowId: string) =>
     setDrafts((prev) =>
-      prev.map((d) =>
-        d.key === key ? { ...d, rows: d.rows.filter((r) => r.dealershipId !== id) } : d,
-      ),
+      prev.map((d) => (d.key === key ? { ...d, rows: d.rows.filter((r) => r.rowId !== rowId) } : d)),
     );
 
   const discardDraft = (key: string) =>
@@ -568,6 +567,30 @@ function ImportPage() {
     setAlias(name, canonical);
     toast.success(`"${name}" → ${canonical}`);
   };
+
+  /** Re-point a matched row at a different roster store and remember the alias. */
+  const reassignRow = (row: ReviewRow, canonical: string) => {
+    for (const raw of row.sourceNames) setAlias(raw, canonical);
+    toast.success(`"${row.sourceNames.join(" + ")}" → ${canonical}`);
+  };
+
+  /** Fold duplicate stores in a draft, keeping the highest-confidence value per metric. */
+  const autoMerge = (key: string) => {
+    setDrafts((prev) =>
+      prev.map((d) => {
+        if (d.key !== key) return d;
+        const before = d.rows.length;
+        const rows = mergeDuplicateRows(d.rows);
+        if (rows.length === before) {
+          toast.info("No duplicate stores to merge.");
+          return d;
+        }
+        toast.success(`Merged ${before - rows.length} duplicate row${before - rows.length > 1 ? "s" : ""}.`);
+        return { ...d, rows };
+      }),
+    );
+  };
+
 
   /* ---------------- publish ---------------- */
 
