@@ -852,6 +852,7 @@ function ImportPage() {
         {/* Draft snapshots */}
         {drafts.map((draft) => {
           const issues = draftIssues(draft);
+          const dupIds = duplicateIds(draft.rows);
           return (
             <section key={draft.key} className="space-y-4 rounded-xl border border-border/60 p-6">
               <div className="flex flex-wrap items-end justify-between gap-3">
@@ -944,7 +945,7 @@ function ImportPage() {
                   </p>
                   <div className="mt-3 space-y-2">
                     {draft.unmatched.map((u) => {
-                      const suggestions = fuzzySuggest(u.name, canonicalNames, 3);
+                      const suggestions = u.candidates;
                       return (
                         <div
                           key={u.key}
@@ -958,11 +959,11 @@ function ImportPage() {
                           <div className="ml-auto flex flex-wrap items-center gap-2">
                             {suggestions.map((s) => (
                               <button
-                                key={s.name}
+                                key={s.id}
                                 onClick={() => mapUnmatched(u.name, s.name)}
                                 className="rounded-full border border-border/60 px-2.5 py-1 text-xs transition-colors hover:bg-muted"
                               >
-                                {s.name} · {(s.score * 100).toFixed(0)}%
+                                {s.name} · {s.score}%
                               </button>
                             ))}
                             <Select onValueChange={(v) => mapUnmatched(u.name, v)}>
@@ -985,6 +986,18 @@ function ImportPage() {
                 </div>
               )}
 
+              {dupIds.size > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs text-amber-700">
+                  <span>
+                    {dupIds.size} dealership{dupIds.size > 1 ? "s appear" : " appears"} on more than
+                    one row. Auto-merge keeps the highest-confidence value for each metric.
+                  </span>
+                  <Button size="sm" variant="outline" onClick={() => autoMerge(draft.key)}>
+                    <Merge className="mr-2 h-4 w-4" /> Auto-merge duplicates
+                  </Button>
+                </div>
+              )}
+
               {draft.rows.length > 0 && (
                 <div className="overflow-x-auto rounded-lg border border-border/60">
                   <table className="w-full text-sm">
@@ -1004,19 +1017,57 @@ function ImportPage() {
                     <tbody>
                       {draft.rows.map((r) => (
                         <tr
-                          key={r.dealershipId}
+                          key={r.rowId}
                           className={cn(
                             "border-b border-border/40",
                             r.confidence < 70 && "bg-destructive/5",
                             r.confidence >= 70 && r.confidence < 85 && "bg-amber-500/5",
                           )}
                         >
-                          <td className="px-4 py-2">
-                            <div className="font-medium">{r.name}</div>
+                          <td className="px-4 py-2 align-top">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{r.name}</span>
+                              {dupIds.has(r.dealershipId) && (
+                                <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                                  duplicate
+                                </span>
+                              )}
+                              {r.matchScore < 100 && (
+                                <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                                  name match {r.matchScore}%
+                                </span>
+                              )}
+                            </div>
                             <div className="text-xs text-muted-foreground">
                               read as “{r.sourceName}”
                               {r.closeRate != null && ` · close ${r.closeRate}%`}
                             </div>
+                            {r.matchScore < 92 && (
+                              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                <span className="text-[11px] text-muted-foreground">Not right?</span>
+                                {r.candidates.map((c) => (
+                                  <button
+                                    key={c.id}
+                                    onClick={() => reassignRow(r, c.name)}
+                                    className="rounded-full border border-border/60 px-2 py-0.5 text-[11px] transition-colors hover:bg-muted"
+                                  >
+                                    {c.name} · {c.score}%
+                                  </button>
+                                ))}
+                                <Select onValueChange={(v) => reassignRow(r, v)}>
+                                  <SelectTrigger className="h-7 w-[170px] text-[11px]">
+                                    <SelectValue placeholder="Pick another store" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {canonicalNames.map((n) => (
+                                      <SelectItem key={n} value={n}>
+                                        {n}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
                           </td>
                           <td className="px-3 py-2">
                             <ConfidenceBadge value={r.confidence} warnings={r.warnings} />
@@ -1045,7 +1096,7 @@ function ImportPage() {
                               <Input
                                 value={r[k] ?? ""}
                                 onChange={(e) =>
-                                  editCell(draft.key, r.dealershipId, k, e.target.value)
+                                  editCell(draft.key, r.rowId, k, e.target.value)
                                 }
                                 className="h-8 w-24 text-right text-sm"
                                 inputMode="decimal"
@@ -1054,7 +1105,7 @@ function ImportPage() {
                           ))}
                           <td className="px-3 py-2 text-right">
                             <button
-                              onClick={() => dropRow(draft.key, r.dealershipId)}
+                              onClick={() => dropRow(draft.key, r.rowId)}
                               className="text-muted-foreground transition-colors hover:text-destructive"
                               aria-label={`Remove ${r.name}`}
                             >
