@@ -68,6 +68,8 @@ type MetricField =
 type MatchCandidate = { id: string; name: string; score: number };
 
 type ReviewRow = {
+  /** Stable per-row key (a store can appear more than once before merging). */
+  rowId: string;
   dealershipId: string;
   name: string;
   sourceName: string;
@@ -347,6 +349,7 @@ function ImportPage() {
           const row =
             byKey.get(rowKey) ??
             ({
+              rowId: rowKey,
               dealershipId: hit.id,
               name: hit.name,
               sourceName: r.name,
