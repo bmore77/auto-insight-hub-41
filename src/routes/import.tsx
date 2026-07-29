@@ -99,7 +99,60 @@ type UnmatchedRow = {
   current: number | null;
   previous: number | null;
   confidence: number;
+  candidates: MatchCandidate[];
 };
+
+const METRIC_FIELDS: MetricField[] = [
+  "leads",
+  "leadsPrev",
+  "sales",
+  "salesPrev",
+  "adSpend",
+  "adSpendPrev",
+  "closeRate",
+];
+
+/** Fold rows that resolved to the same store, keeping the highest-confidence value per metric. */
+const mergeDuplicateRows = (rows: ReviewRow[]): ReviewRow[] => {
+  const byId = new Map<string, ReviewRow>();
+  for (const row of rows) {
+    const existing = byId.get(row.dealershipId);
+    if (!existing) {
+      byId.set(row.dealershipId, { ...row, fieldConf: { ...row.fieldConf } });
+      continue;
+    }
+    const merged: ReviewRow = {
+      ...existing,
+      sourceNames: Array.from(new Set([...existing.sourceNames, ...row.sourceNames])),
+      warnings: Array.from(new Set([...existing.warnings, ...row.warnings])),
+      matchScore: Math.max(existing.matchScore, row.matchScore),
+      confidence: Math.round((existing.confidence + row.confidence) / 2),
+      fieldConf: { ...existing.fieldConf },
+    };
+    for (const f of METRIC_FIELDS) {
+      const incoming = row[f];
+      if (incoming == null) continue;
+      const currentConf = merged.fieldConf[f] ?? (merged[f] == null ? -1 : merged.confidence);
+      const incomingConf = row.fieldConf[f] ?? row.confidence;
+      if (merged[f] == null || incomingConf > currentConf) {
+        (merged[f] as number | null) = incoming;
+        merged.fieldConf[f] = incomingConf;
+      }
+    }
+    merged.sourceName = merged.sourceNames.join(" + ");
+    byId.set(row.dealershipId, merged);
+  }
+  return Array.from(byId.values()).sort(
+    (a, b) => a.confidence - b.confidence || a.name.localeCompare(b.name),
+  );
+};
+
+const duplicateIds = (rows: ReviewRow[]) => {
+  const seen = new Map<string, number>();
+  for (const r of rows) seen.set(r.dealershipId, (seen.get(r.dealershipId) ?? 0) + 1);
+  return new Set(Array.from(seen).filter(([, n]) => n > 1).map(([id]) => id));
+};
+
 
 type QueueItem = {
   id: string;
