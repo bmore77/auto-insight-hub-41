@@ -56,10 +56,23 @@ export const Route = createFileRoute("/import")({
 
 type MetricKey = "leads" | "sales" | "adSpend" | "closeRate" | "unknown";
 
+type MetricField =
+  | "leads"
+  | "leadsPrev"
+  | "sales"
+  | "salesPrev"
+  | "adSpend"
+  | "adSpendPrev"
+  | "closeRate";
+
+type MatchCandidate = { id: string; name: string; score: number };
+
 type ReviewRow = {
   dealershipId: string;
   name: string;
   sourceName: string;
+  /** Every raw name that folded into this row (after merges). */
+  sourceNames: string[];
   leads: number | null;
   leadsPrev: number | null;
   sales: number | null;
@@ -69,8 +82,15 @@ type ReviewRow = {
   closeRate: number | null;
   /** 0–100 average confidence across every metric read for this store. */
   confidence: number;
+  /** How sure we are the raw name maps to this roster store (0–100). */
+  matchScore: number;
+  /** Other plausible roster stores for the raw name. */
+  candidates: MatchCandidate[];
+  /** Per-field confidence, used when merging duplicates. */
+  fieldConf: Partial<Record<MetricField, number>>;
   warnings: string[];
 };
+
 
 type UnmatchedRow = {
   key: string;
