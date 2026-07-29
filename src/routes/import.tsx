@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Check, Eye, Loader2, Trash2, Upload } from "lucide-react";
+import { AlertTriangle, Check, Eye, Loader2, Merge, Trash2, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,10 +56,25 @@ export const Route = createFileRoute("/import")({
 
 type MetricKey = "leads" | "sales" | "adSpend" | "closeRate" | "unknown";
 
+type MetricField =
+  | "leads"
+  | "leadsPrev"
+  | "sales"
+  | "salesPrev"
+  | "adSpend"
+  | "adSpendPrev"
+  | "closeRate";
+
+type MatchCandidate = { id: string; name: string; score: number };
+
 type ReviewRow = {
+  /** Stable per-row key (a store can appear more than once before merging). */
+  rowId: string;
   dealershipId: string;
   name: string;
   sourceName: string;
+  /** Every raw name that folded into this row (after merges). */
+  sourceNames: string[];
   leads: number | null;
   leadsPrev: number | null;
   sales: number | null;
@@ -69,8 +84,15 @@ type ReviewRow = {
   closeRate: number | null;
   /** 0–100 average confidence across every metric read for this store. */
   confidence: number;
+  /** How sure we are the raw name maps to this roster store (0–100). */
+  matchScore: number;
+  /** Other plausible roster stores for the raw name. */
+  candidates: MatchCandidate[];
+  /** Per-field confidence, used when merging duplicates. */
+  fieldConf: Partial<Record<MetricField, number>>;
   warnings: string[];
 };
+
 
 type UnmatchedRow = {
   key: string;
@@ -79,7 +101,60 @@ type UnmatchedRow = {
   current: number | null;
   previous: number | null;
   confidence: number;
+  candidates: MatchCandidate[];
 };
+
+const METRIC_FIELDS: MetricField[] = [
+  "leads",
+  "leadsPrev",
+  "sales",
+  "salesPrev",
+  "adSpend",
+  "adSpendPrev",
+  "closeRate",
+];
+
+/** Fold rows that resolved to the same store, keeping the highest-confidence value per metric. */
+const mergeDuplicateRows = (rows: ReviewRow[]): ReviewRow[] => {
+  const byId = new Map<string, ReviewRow>();
+  for (const row of rows) {
+    const existing = byId.get(row.dealershipId);
+    if (!existing) {
+      byId.set(row.dealershipId, { ...row, fieldConf: { ...row.fieldConf } });
+      continue;
+    }
+    const merged: ReviewRow = {
+      ...existing,
+      sourceNames: Array.from(new Set([...existing.sourceNames, ...row.sourceNames])),
+      warnings: Array.from(new Set([...existing.warnings, ...row.warnings])),
+      matchScore: Math.max(existing.matchScore, row.matchScore),
+      confidence: Math.round((existing.confidence + row.confidence) / 2),
+      fieldConf: { ...existing.fieldConf },
+    };
+    for (const f of METRIC_FIELDS) {
+      const incoming = row[f];
+      if (incoming == null) continue;
+      const currentConf = merged.fieldConf[f] ?? (merged[f] == null ? -1 : merged.confidence);
+      const incomingConf = row.fieldConf[f] ?? row.confidence;
+      if (merged[f] == null || incomingConf > currentConf) {
+        (merged[f] as number | null) = incoming;
+        merged.fieldConf[f] = incomingConf;
+      }
+    }
+    merged.sourceName = merged.sourceNames.join(" + ");
+    byId.set(row.dealershipId, merged);
+  }
+  return Array.from(byId.values()).sort(
+    (a, b) => a.confidence - b.confidence || a.name.localeCompare(b.name),
+  );
+};
+
+const duplicateIds = (rows: ReviewRow[]) => {
+  const seen = new Map<string, number>();
+  for (const r of rows) seen.set(r.dealershipId, (seen.get(r.dealershipId) ?? 0) + 1);
+  return new Set(Array.from(seen).filter(([, n]) => n > 1).map(([id]) => id));
+};
+
 
 type QueueItem = {
   id: string;
@@ -213,29 +288,51 @@ function ImportPage() {
   }, []);
   const canonicalNames = useMemo(() => ROSTER.map((d) => d.name), []);
 
+  /** Returns the best match plus runner-up candidates for a raw name. */
   const matchStore = useCallback(
     (raw: string) => {
       const viaMapping = resolveName(raw, mapping);
+      const suggestions = fuzzySuggest(viaMapping, canonicalNames, 5);
+      const candidates: MatchCandidate[] = suggestions
+        .map((s) => {
+          const hit = canonicalIndex.get(normalizeName(s.name));
+          return hit ? { id: hit.id, name: hit.name, score: Math.round(s.score * 100) } : null;
+        })
+        .filter((c): c is MatchCandidate => c !== null);
+
       const exact = canonicalIndex.get(normalizeName(viaMapping));
-      if (exact) return exact;
-      const [best] = fuzzySuggest(viaMapping, canonicalNames, 1);
-      if (best && best.score >= 0.62) {
-        return canonicalIndex.get(normalizeName(best.name)) ?? null;
+      if (exact) {
+        return {
+          hit: exact,
+          matchScore: 100,
+          candidates: candidates.filter((c) => c.id !== exact.id).slice(0, 3),
+        };
       }
-      return null;
+      const [best] = suggestions;
+      if (best && best.score >= 0.62) {
+        const hit = canonicalIndex.get(normalizeName(best.name));
+        if (hit) {
+          return {
+            hit,
+            matchScore: Math.round(best.score * 100),
+            candidates: candidates.filter((c) => c.id !== hit.id).slice(0, 3),
+          };
+        }
+      }
+      return { hit: null, matchScore: 0, candidates: candidates.slice(0, 3) };
     },
     [mapping, canonicalIndex, canonicalNames],
   );
 
   const buildReview = useCallback(
     (parsedTables: ParsedTable[]) => {
-      const byStore = new Map<string, ReviewRow & { _scores: number[] }>();
+      const byKey = new Map<string, ReviewRow & { _scores: number[] }>();
       const misses: UnmatchedRow[] = [];
 
       for (const t of parsedTables) {
         const metric = t.metric as MetricKey;
         for (const [i, r] of t.rows.entries()) {
-          const hit = matchStore(r.name);
+          const { hit, matchScore, candidates } = matchStore(r.name);
           if (!hit) {
             misses.push({
               key: `${metric}-${i}-${r.name}`,
@@ -244,15 +341,19 @@ function ImportPage() {
               current: r.current,
               previous: r.previous,
               confidence: r.confidence,
+              candidates,
             });
             continue;
           }
+          const rowKey = `${hit.id}::${normalizeName(r.name)}`;
           const row =
-            byStore.get(hit.id) ??
+            byKey.get(rowKey) ??
             ({
+              rowId: rowKey,
               dealershipId: hit.id,
               name: hit.name,
               sourceName: r.name,
+              sourceNames: [r.name],
               leads: null,
               leadsPrev: null,
               sales: null,
@@ -261,30 +362,41 @@ function ImportPage() {
               adSpendPrev: null,
               closeRate: null,
               confidence: 100,
+              matchScore,
+              candidates,
+              fieldConf: {},
               warnings: [],
               _scores: [],
-            } as ReviewRow & { _scores: number[] });
+            } satisfies ReviewRow & { _scores: number[] });
 
           row._scores.push(r.confidence);
           for (const w of r.warnings) row.warnings.push(`${METRIC_LABEL[metric]}: ${w}`);
 
+          const put = (field: MetricField, value: number | null) => {
+            const prevConf = row.fieldConf[field];
+            if (value == null) return;
+            if (prevConf != null && prevConf >= r.confidence && row[field] != null) return;
+            (row[field] as number | null) = value;
+            row.fieldConf[field] = r.confidence;
+          };
+
           if (metric === "leads") {
-            row.leads = r.current;
-            row.leadsPrev = r.previous;
+            put("leads", r.current);
+            put("leadsPrev", r.previous);
           } else if (metric === "sales") {
-            row.sales = r.current;
-            row.salesPrev = r.previous;
+            put("sales", r.current);
+            put("salesPrev", r.previous);
           } else if (metric === "adSpend") {
-            row.adSpend = r.current;
-            row.adSpendPrev = r.previous;
+            put("adSpend", r.current);
+            put("adSpendPrev", r.previous);
           } else if (metric === "closeRate") {
-            row.closeRate = r.current;
+            put("closeRate", r.current);
           }
-          byStore.set(hit.id, row);
+          byKey.set(rowKey, row);
         }
       }
 
-      const rows = Array.from(byStore.values())
+      const rows = Array.from(byKey.values())
         .map(({ _scores, ...row }) => ({
           ...row,
           confidence: _scores.length
@@ -297,6 +409,7 @@ function ImportPage() {
     },
     [matchStore],
   );
+
 
   // Re-run matching whenever the user saves a new alias.
   useEffect(() => {
@@ -421,7 +534,7 @@ function ImportPage() {
   const patchDraft = (key: string, patch: Partial<Draft>) =>
     setDrafts((prev) => prev.map((d) => (d.key === key ? { ...d, ...patch } : d)));
 
-  const editCell = (key: string, id: string, field: keyof ReviewRow, value: string) => {
+  const editCell = (key: string, rowId: string, field: keyof ReviewRow, value: string) => {
     const num = value.trim() === "" ? null : Number(value.replace(/[^0-9.-]/g, ""));
     setDrafts((prev) =>
       prev.map((d) =>
@@ -429,11 +542,12 @@ function ImportPage() {
           ? {
               ...d,
               rows: d.rows.map((r) =>
-                r.dealershipId === id
+                r.rowId === rowId
                   ? {
                       ...r,
                       [field]: Number.isFinite(num as number) ? num : null,
                       confidence: 100,
+                      fieldConf: { ...r.fieldConf, [field]: 100 },
                       warnings: [],
                     }
                   : r,
@@ -444,11 +558,9 @@ function ImportPage() {
     );
   };
 
-  const dropRow = (key: string, id: string) =>
+  const dropRow = (key: string, rowId: string) =>
     setDrafts((prev) =>
-      prev.map((d) =>
-        d.key === key ? { ...d, rows: d.rows.filter((r) => r.dealershipId !== id) } : d,
-      ),
+      prev.map((d) => (d.key === key ? { ...d, rows: d.rows.filter((r) => r.rowId !== rowId) } : d)),
     );
 
   const discardDraft = (key: string) =>
@@ -458,6 +570,30 @@ function ImportPage() {
     setAlias(name, canonical);
     toast.success(`"${name}" → ${canonical}`);
   };
+
+  /** Re-point a matched row at a different roster store and remember the alias. */
+  const reassignRow = (row: ReviewRow, canonical: string) => {
+    for (const raw of row.sourceNames) setAlias(raw, canonical);
+    toast.success(`"${row.sourceNames.join(" + ")}" → ${canonical}`);
+  };
+
+  /** Fold duplicate stores in a draft, keeping the highest-confidence value per metric. */
+  const autoMerge = (key: string) => {
+    setDrafts((prev) =>
+      prev.map((d) => {
+        if (d.key !== key) return d;
+        const before = d.rows.length;
+        const rows = mergeDuplicateRows(d.rows);
+        if (rows.length === before) {
+          toast.info("No duplicate stores to merge.");
+          return d;
+        }
+        toast.success(`Merged ${before - rows.length} duplicate row${before - rows.length > 1 ? "s" : ""}.`);
+        return { ...d, rows };
+      }),
+    );
+  };
+
 
   /* ---------------- publish ---------------- */
 
@@ -716,6 +852,7 @@ function ImportPage() {
         {/* Draft snapshots */}
         {drafts.map((draft) => {
           const issues = draftIssues(draft);
+          const dupIds = duplicateIds(draft.rows);
           return (
             <section key={draft.key} className="space-y-4 rounded-xl border border-border/60 p-6">
               <div className="flex flex-wrap items-end justify-between gap-3">
@@ -808,7 +945,7 @@ function ImportPage() {
                   </p>
                   <div className="mt-3 space-y-2">
                     {draft.unmatched.map((u) => {
-                      const suggestions = fuzzySuggest(u.name, canonicalNames, 3);
+                      const suggestions = u.candidates;
                       return (
                         <div
                           key={u.key}
@@ -822,11 +959,11 @@ function ImportPage() {
                           <div className="ml-auto flex flex-wrap items-center gap-2">
                             {suggestions.map((s) => (
                               <button
-                                key={s.name}
+                                key={s.id}
                                 onClick={() => mapUnmatched(u.name, s.name)}
                                 className="rounded-full border border-border/60 px-2.5 py-1 text-xs transition-colors hover:bg-muted"
                               >
-                                {s.name} · {(s.score * 100).toFixed(0)}%
+                                {s.name} · {s.score}%
                               </button>
                             ))}
                             <Select onValueChange={(v) => mapUnmatched(u.name, v)}>
@@ -849,6 +986,18 @@ function ImportPage() {
                 </div>
               )}
 
+              {dupIds.size > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs text-amber-700">
+                  <span>
+                    {dupIds.size} dealership{dupIds.size > 1 ? "s appear" : " appears"} on more than
+                    one row. Auto-merge keeps the highest-confidence value for each metric.
+                  </span>
+                  <Button size="sm" variant="outline" onClick={() => autoMerge(draft.key)}>
+                    <Merge className="mr-2 h-4 w-4" /> Auto-merge duplicates
+                  </Button>
+                </div>
+              )}
+
               {draft.rows.length > 0 && (
                 <div className="overflow-x-auto rounded-lg border border-border/60">
                   <table className="w-full text-sm">
@@ -868,19 +1017,57 @@ function ImportPage() {
                     <tbody>
                       {draft.rows.map((r) => (
                         <tr
-                          key={r.dealershipId}
+                          key={r.rowId}
                           className={cn(
                             "border-b border-border/40",
                             r.confidence < 70 && "bg-destructive/5",
                             r.confidence >= 70 && r.confidence < 85 && "bg-amber-500/5",
                           )}
                         >
-                          <td className="px-4 py-2">
-                            <div className="font-medium">{r.name}</div>
+                          <td className="px-4 py-2 align-top">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{r.name}</span>
+                              {dupIds.has(r.dealershipId) && (
+                                <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                                  duplicate
+                                </span>
+                              )}
+                              {r.matchScore < 100 && (
+                                <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                                  name match {r.matchScore}%
+                                </span>
+                              )}
+                            </div>
                             <div className="text-xs text-muted-foreground">
                               read as “{r.sourceName}”
                               {r.closeRate != null && ` · close ${r.closeRate}%`}
                             </div>
+                            {r.matchScore < 92 && (
+                              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                <span className="text-[11px] text-muted-foreground">Not right?</span>
+                                {r.candidates.map((c) => (
+                                  <button
+                                    key={c.id}
+                                    onClick={() => reassignRow(r, c.name)}
+                                    className="rounded-full border border-border/60 px-2 py-0.5 text-[11px] transition-colors hover:bg-muted"
+                                  >
+                                    {c.name} · {c.score}%
+                                  </button>
+                                ))}
+                                <Select onValueChange={(v) => reassignRow(r, v)}>
+                                  <SelectTrigger className="h-7 w-[170px] text-[11px]">
+                                    <SelectValue placeholder="Pick another store" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {canonicalNames.map((n) => (
+                                      <SelectItem key={n} value={n}>
+                                        {n}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
                           </td>
                           <td className="px-3 py-2">
                             <ConfidenceBadge value={r.confidence} warnings={r.warnings} />
@@ -909,7 +1096,7 @@ function ImportPage() {
                               <Input
                                 value={r[k] ?? ""}
                                 onChange={(e) =>
-                                  editCell(draft.key, r.dealershipId, k, e.target.value)
+                                  editCell(draft.key, r.rowId, k, e.target.value)
                                 }
                                 className="h-8 w-24 text-right text-sm"
                                 inputMode="decimal"
@@ -918,7 +1105,7 @@ function ImportPage() {
                           ))}
                           <td className="px-3 py-2 text-right">
                             <button
-                              onClick={() => dropRow(draft.key, r.dealershipId)}
+                              onClick={() => dropRow(draft.key, r.rowId)}
                               className="text-muted-foreground transition-colors hover:text-destructive"
                               aria-label={`Remove ${r.name}`}
                             >
