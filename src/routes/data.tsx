@@ -564,7 +564,7 @@ function MappingEditor() {
   return (
     <div className="space-y-6">
     <ImportPanel canonicalNames={canonicalNames} />
-    <div className="grid gap-6 lg:grid-cols-[1fr,1fr]">
+    <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
       <div className="rounded-2xl border border-border/60 bg-card p-6">
         <div className="mb-4">
           <h3 className="text-sm font-semibold tracking-tight">Add mapping</h3>
