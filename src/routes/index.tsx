@@ -203,17 +203,18 @@ function Dashboard() {
       <main className="mx-auto max-w-[1400px] px-8 py-10">
         {/* Title */}
         <div className="mb-8">
-          <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/70 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-            <span className="h-1.5 w-1.5 rounded-full bg-danger" />
+          <div className="inline-flex items-center gap-2 rounded-full border border-brand/20 bg-brand-soft px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-brand">
+            <span className="h-1.5 w-1.5 rounded-full bg-brand" />
             Network priority
           </div>
-          <h1 className="mt-3 text-[32px] font-semibold leading-tight tracking-tight">
+          <h1 className="font-display mt-3 text-[34px] font-semibold leading-tight tracking-tight">
             Where to focus — {period}
           </h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
             {filtered.length} dealerships · comparing {compare.toLowerCase()}
           </p>
         </div>
+
 
         {/* KPI Strip */}
         <section className="mb-10 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border/60 bg-border/60 shadow-soft md:grid-cols-3 lg:grid-cols-6">
