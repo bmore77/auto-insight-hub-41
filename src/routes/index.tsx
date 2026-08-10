@@ -148,23 +148,24 @@ function Dashboard() {
 
               <Link
                 to="/priority"
-                className="rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="rounded-lg px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
               >
                 Priority
               </Link>
               <Link
                 to="/data"
-                className="rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="rounded-lg px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
               >
                 Data
               </Link>
               <Link
                 to="/import"
-                className="rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="rounded-lg px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
               >
                 Import
               </Link>
             </nav>
+
             <SnapshotPicker
               snapshots={dash.snapshots}
               selected={dash.selected}
