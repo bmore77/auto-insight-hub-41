@@ -50,7 +50,7 @@ export function SnapshotPicker({
         className={cn(
           "rounded-full px-2 py-0.5 text-[11px] font-medium",
           source === "snapshot"
-            ? "bg-emerald-500/10 text-emerald-600"
+            ? "bg-success-soft text-success ring-1 ring-inset ring-success-border"
             : "bg-muted text-muted-foreground",
         )}
       >

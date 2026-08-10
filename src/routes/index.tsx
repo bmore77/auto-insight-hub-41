@@ -551,7 +551,7 @@ function Th({
     <th
       onClick={onClick}
       className={cn(
-        "cursor-pointer select-none px-4 py-3 text-right font-medium",
+        "cursor-pointer select-none px-4 py-3 text-right font-medium transition-colors hover:text-foreground",
         className,
       )}
     >
@@ -584,7 +584,7 @@ function NumCell({
 }) {
   return (
     <td className="px-4 py-3 text-right">
-      <div className="tabular-nums">{value}</div>
+      <div className="num">{value}</div>
       {(delta !== undefined || deltaPt !== undefined) && (
         <div className="mt-0.5">
           <DeltaChip value={delta} valuePt={deltaPt} invert={invert} />
@@ -732,7 +732,7 @@ function MiniStat({
       <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
         {label}
       </div>
-      <div className="mt-1 text-lg font-semibold tabular-nums">{value}</div>
+      <div className="num mt-1 text-lg font-semibold">{value}</div>
       {(delta !== undefined || deltaPt !== undefined) && (
         <div className="mt-0.5">
           <DeltaChip value={delta} valuePt={deltaPt} invert={invert} />
