@@ -396,11 +396,12 @@ function Kpi({
   invert?: boolean;
 }) {
   return (
-    <div className="bg-card p-5">
-      <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+    <div className="bg-card p-5 transition-colors hover:bg-surface-muted">
+      <div className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
         {label}
       </div>
-      <div className="mt-2 text-2xl font-semibold tracking-tight">{value}</div>
+      <div className="num mt-2 text-2xl font-semibold tracking-tight">{value}</div>
+
       {delta !== undefined && (
         <div className="mt-1">
           <DeltaChip value={delta} invert={invert} />
