@@ -202,16 +202,21 @@ function Dashboard() {
       <main className="mx-auto max-w-[1400px] px-8 py-10">
         {/* Title */}
         <div className="mb-8">
-          <h1 className="text-[28px] font-semibold tracking-tight">
+          <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/70 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+            <span className="h-1.5 w-1.5 rounded-full bg-danger" />
+            Network priority
+          </div>
+          <h1 className="mt-3 text-[32px] font-semibold leading-tight tracking-tight">
             Where to focus — {period}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1.5 text-sm text-muted-foreground">
             {filtered.length} dealerships · comparing {compare.toLowerCase()}
           </p>
         </div>
 
         {/* KPI Strip */}
-        <section className="mb-10 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border/60 bg-border/60 md:grid-cols-3 lg:grid-cols-6">
+        <section className="mb-10 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border/60 bg-border/60 shadow-soft md:grid-cols-3 lg:grid-cols-6">
+
           <Kpi label="Leads" value={totals.leads.toLocaleString()} delta={totals.leadsDelta} />
           <Kpi label="Sales" value={totals.sales.toLocaleString()} delta={totals.salesDelta} />
           <Kpi
