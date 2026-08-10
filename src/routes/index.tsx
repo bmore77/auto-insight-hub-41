@@ -524,9 +524,10 @@ function PriorityPill({ score }: { score: number }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset",
+        "num inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset",
         styles,
       )}
+
     >
       {score.toFixed(0)}
     </span>
