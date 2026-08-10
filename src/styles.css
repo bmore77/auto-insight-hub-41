@@ -207,22 +207,34 @@
   --danger-border: oklch(0.44 0.1 18);
   --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.4), 0 10px 30px -18px oklch(0 0 0 / 0.7);
   --shadow-raised: 0 1px 2px oklch(0 0 0 / 0.45), 0 24px 48px -24px oklch(0 0 0 / 0.8);
-  --gradient-page: radial-gradient(1200px 480px at 50% -160px, oklch(0.3 0.05 265 / 0.7), transparent 70%);
+  --gradient-page: radial-gradient(900px 420px at 12% -180px, oklch(0.66 0.2 27 / 0.16), transparent 70%),
+    radial-gradient(1100px 460px at 82% -200px, oklch(0.62 0.14 258 / 0.16), transparent 70%);
+  --gradient-brand: linear-gradient(120deg, oklch(0.66 0.2 27), oklch(0.62 0.14 258));
 }
 
 @layer base {
   body {
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
-    font-feature-settings: "cv02", "cv03", "ss01";
   }
 
   h1,
   h2,
-  h3 {
-    letter-spacing: -0.02em;
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.025em;
   }
 }
+
+@utility font-display {
+  font-family: var(--font-display);
+}
+
+@utility bg-brand-gradient {
+  background-image: var(--gradient-brand);
+}
+
 
 @utility page-canvas {
   background-image: var(--gradient-page);
