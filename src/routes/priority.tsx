@@ -309,7 +309,7 @@ function PriorityRow({
     <button
       onClick={onOpen}
       className={cn(
-        "group grid w-full grid-cols-[56px,1fr,340px,200px] items-center gap-6 rounded-2xl border bg-card px-5 py-4 text-left transition-all hover:shadow-sm",
+        "group grid w-full grid-cols-[56px_1fr_340px_200px] items-center gap-6 rounded-2xl border bg-card px-5 py-4 text-left transition-all hover:shadow-sm",
         border,
         plan?.status === "addressed" && "opacity-70",
       )}
@@ -427,7 +427,7 @@ function ContribBar({
   const isBad = delta.startsWith("-") ? label !== "CPL" : label === "CPL" && !delta.startsWith("-");
   const isGoodMove = delta === "+0.0%" || delta === "+0.0pt";
   return (
-    <div className="grid grid-cols-[44px,1fr,60px] items-center gap-2">
+    <div className="grid grid-cols-[44px_1fr_60px] items-center gap-2">
       <span className="text-[11px] text-muted-foreground">{label}</span>
       <div className="h-1.5 overflow-hidden rounded-full bg-muted">
         <div className={cn("h-full rounded-full transition-all", color)} style={{ width: `${pct}%` }} />

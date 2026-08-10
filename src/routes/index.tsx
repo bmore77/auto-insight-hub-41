@@ -124,46 +124,48 @@ function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="page-canvas min-h-screen bg-background text-foreground">
       {/* Header */}
-      <header className="border-b border-border/60">
-        <div className="mx-auto flex max-w-[1400px] items-center justify-between px-8 py-5">
+      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
+        <div className="mx-auto flex max-w-[1400px] items-center justify-between px-8 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground text-background text-sm font-semibold">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-foreground text-background text-sm font-semibold shadow-soft">
               A
             </div>
             <div>
-              <div className="text-sm font-medium tracking-tight">Auto Canada</div>
+              <div className="text-sm font-semibold tracking-tight">Auto Canada</div>
               <div className="text-xs text-muted-foreground">Dealership Priority</div>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <nav className="mr-2 flex items-center gap-1 text-sm">
+            <nav className="mr-2 flex items-center gap-1 rounded-xl border border-border/60 bg-surface-muted/70 p-1 text-sm">
               <Link
                 to="/"
-                className="rounded-md bg-muted px-3 py-1.5 text-foreground"
+                className="rounded-lg bg-card px-3 py-1.5 font-medium text-foreground shadow-soft"
               >
                 Dashboard
               </Link>
+
               <Link
                 to="/priority"
-                className="rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="rounded-lg px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
               >
                 Priority
               </Link>
               <Link
                 to="/data"
-                className="rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="rounded-lg px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
               >
                 Data
               </Link>
               <Link
                 to="/import"
-                className="rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="rounded-lg px-3 py-1.5 text-muted-foreground transition-colors hover:text-foreground"
               >
                 Import
               </Link>
             </nav>
+
             <SnapshotPicker
               snapshots={dash.snapshots}
               selected={dash.selected}
@@ -200,16 +202,21 @@ function Dashboard() {
       <main className="mx-auto max-w-[1400px] px-8 py-10">
         {/* Title */}
         <div className="mb-8">
-          <h1 className="text-[28px] font-semibold tracking-tight">
+          <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/70 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+            <span className="h-1.5 w-1.5 rounded-full bg-danger" />
+            Network priority
+          </div>
+          <h1 className="mt-3 text-[32px] font-semibold leading-tight tracking-tight">
             Where to focus — {period}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1.5 text-sm text-muted-foreground">
             {filtered.length} dealerships · comparing {compare.toLowerCase()}
           </p>
         </div>
 
         {/* KPI Strip */}
-        <section className="mb-10 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border/60 bg-border/60 md:grid-cols-3 lg:grid-cols-6">
+        <section className="mb-10 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border/60 bg-border/60 shadow-soft md:grid-cols-3 lg:grid-cols-6">
+
           <Kpi label="Leads" value={totals.leads.toLocaleString()} delta={totals.leadsDelta} />
           <Kpi label="Sales" value={totals.sales.toLocaleString()} delta={totals.salesDelta} />
           <Kpi
@@ -296,10 +303,11 @@ function Dashboard() {
             </Select>
           </div>
 
-          <div className="overflow-hidden rounded-2xl border border-border/60">
+          <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-soft">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border/60 bg-muted/30 text-[11px] uppercase tracking-wider text-muted-foreground">
+                <tr className="border-b border-border/60 bg-surface-muted/80 text-[11px] uppercase tracking-wider text-muted-foreground backdrop-blur">
+
                   <Th onClick={() => toggleSort("name")} active={sortKey === "name"} dir={sortDir} className="text-left">
                     Dealership
                   </Th>
@@ -335,14 +343,17 @@ function Dashboard() {
                   <tr
                     key={d.id}
                     onClick={() => setSelected(d)}
-                    className="cursor-pointer border-b border-border/40 transition-colors last:border-0 hover:bg-muted/40"
+                    className="group cursor-pointer border-b border-border/40 transition-colors last:border-0 hover:bg-surface-muted"
                   >
                     <td className="px-4 py-3">
-                      <div className="font-medium">{d.name}</div>
+                      <div className="font-medium transition-colors group-hover:text-foreground">
+                        {d.name}
+                      </div>
                       <div className="text-xs text-muted-foreground">
                         {d.city} · {d.brand}
                       </div>
                     </td>
+
                     <NumCell value={d.leads.toLocaleString()} delta={d.leadsDelta} />
                     <NumCell value={d.sales.toLocaleString()} delta={d.salesDelta} />
                     <NumCell value={formatPct(d.closeRate)} deltaPt={d.closeRateDelta} />
@@ -385,11 +396,12 @@ function Kpi({
   invert?: boolean;
 }) {
   return (
-    <div className="bg-card p-5">
-      <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+    <div className="bg-card p-5 transition-colors hover:bg-surface-muted">
+      <div className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
         {label}
       </div>
-      <div className="mt-2 text-2xl font-semibold tracking-tight">{value}</div>
+      <div className="num mt-2 text-2xl font-semibold tracking-tight">{value}</div>
+
       {delta !== undefined && (
         <div className="mt-1">
           <DeltaChip value={delta} invert={invert} />
@@ -416,20 +428,22 @@ function DeltaChip({
   const raw = value ?? valuePt ?? 0;
   const good = invert ? raw < 0 : raw > 0;
   const bad = invert ? raw > 0 : raw < 0;
-  const color = good
-    ? "text-emerald-600"
-    : bad
-    ? "text-rose-600"
-    : "text-muted-foreground";
+  const color = good ? "text-success" : bad ? "text-danger" : "text-muted-foreground";
   const Icon = raw > 0 ? ArrowUp : raw < 0 ? ArrowDown : null;
   const label = value !== undefined ? formatDelta(value) : formatDeltaPt(valuePt!);
   return (
-    <span className={cn("inline-flex items-center gap-0.5 text-xs font-medium", color)}>
-      {Icon && <Icon className="h-3 w-3" />}
+    <span
+      className={cn(
+        "num inline-flex items-center gap-0.5 text-xs font-medium tracking-tight",
+        color,
+      )}
+    >
+      {Icon && <Icon className="h-3 w-3" strokeWidth={2.5} />}
       {label}
     </span>
   );
 }
+
 
 function PriorityCard({
   rank,
@@ -441,19 +455,29 @@ function PriorityCard({
   onClick: () => void;
 }) {
   const data = dealership.trend.map((v, i) => ({ i, v }));
+  const accent =
+    dealership.priorityScore >= 70
+      ? "var(--danger)"
+      : dealership.priorityScore >= 40
+      ? "var(--warning)"
+      : "var(--success)";
   return (
     <button
       onClick={onClick}
-      className="group flex flex-col rounded-2xl border border-border/60 bg-card p-5 text-left transition-all hover:border-border hover:shadow-sm"
+      className="group relative flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-card p-5 text-left shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:border-border hover:shadow-raised"
     >
+      <span
+        className="absolute inset-x-0 top-0 h-[3px] opacity-70 transition-opacity group-hover:opacity-100"
+        style={{ background: `linear-gradient(90deg, ${accent}, transparent)` }}
+      />
       <div className="flex items-start justify-between">
-        <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-          #{rank}
+        <span className="num inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-surface-muted px-1.5 text-[11px] font-semibold text-muted-foreground">
+          {rank}
         </span>
         <PriorityPill score={dealership.priorityScore} />
       </div>
       <div className="mt-3">
-        <div className="font-medium leading-tight">{dealership.name}</div>
+        <div className="font-semibold leading-tight tracking-tight">{dealership.name}</div>
         <div className="mt-0.5 text-xs text-muted-foreground">
           {dealership.city} · {dealership.brand}
         </div>
@@ -462,7 +486,7 @@ function PriorityCard({
         {dealership.reasons.slice(0, 3).map((r) => (
           <span
             key={r}
-            className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground/80"
+            className="rounded-full border border-border/60 bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-foreground/80"
           >
             {r}
           </span>
@@ -477,10 +501,9 @@ function PriorityCard({
             <Line
               type="monotone"
               dataKey="v"
-              stroke="currentColor"
-              strokeWidth={1.5}
+              stroke={accent}
+              strokeWidth={1.75}
               dot={false}
-              className="text-foreground/60"
             />
           </LineChart>
         </ResponsiveContainer>
@@ -490,20 +513,21 @@ function PriorityCard({
 }
 
 function PriorityPill({ score }: { score: number }) {
-  const level =
-    score >= 70 ? "high" : score >= 40 ? "med" : "low";
+  const level = score >= 70 ? "high" : score >= 40 ? "med" : "low";
   const styles =
     level === "high"
-      ? "bg-rose-50 text-rose-700 ring-rose-200"
+      ? "bg-danger-soft text-danger ring-danger-border"
       : level === "med"
-      ? "bg-amber-50 text-amber-700 ring-amber-200"
-      : "bg-emerald-50 text-emerald-700 ring-emerald-200";
+      ? "bg-warning-soft text-warning ring-warning-border"
+      : "bg-success-soft text-success ring-success-border";
+
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset",
+        "num inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset",
         styles,
       )}
+
     >
       {score.toFixed(0)}
     </span>
@@ -527,7 +551,7 @@ function Th({
     <th
       onClick={onClick}
       className={cn(
-        "cursor-pointer select-none px-4 py-3 text-right font-medium",
+        "cursor-pointer select-none px-4 py-3 text-right font-medium transition-colors hover:text-foreground",
         className,
       )}
     >
@@ -560,7 +584,7 @@ function NumCell({
 }) {
   return (
     <td className="px-4 py-3 text-right">
-      <div className="tabular-nums">{value}</div>
+      <div className="num">{value}</div>
       {(delta !== undefined || deltaPt !== undefined) && (
         <div className="mt-0.5">
           <DeltaChip value={delta} valuePt={deltaPt} invert={invert} />
@@ -708,7 +732,7 @@ function MiniStat({
       <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
         {label}
       </div>
-      <div className="mt-1 text-lg font-semibold tabular-nums">{value}</div>
+      <div className="num mt-1 text-lg font-semibold">{value}</div>
       {(delta !== undefined || deltaPt !== undefined) && (
         <div className="mt-0.5">
           <DeltaChip value={delta} valuePt={deltaPt} invert={invert} />
