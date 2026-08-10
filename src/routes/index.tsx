@@ -428,20 +428,22 @@ function DeltaChip({
   const raw = value ?? valuePt ?? 0;
   const good = invert ? raw < 0 : raw > 0;
   const bad = invert ? raw > 0 : raw < 0;
-  const color = good
-    ? "text-emerald-600"
-    : bad
-    ? "text-rose-600"
-    : "text-muted-foreground";
+  const color = good ? "text-success" : bad ? "text-danger" : "text-muted-foreground";
   const Icon = raw > 0 ? ArrowUp : raw < 0 ? ArrowDown : null;
   const label = value !== undefined ? formatDelta(value) : formatDeltaPt(valuePt!);
   return (
-    <span className={cn("inline-flex items-center gap-0.5 text-xs font-medium", color)}>
-      {Icon && <Icon className="h-3 w-3" />}
+    <span
+      className={cn(
+        "num inline-flex items-center gap-0.5 text-xs font-medium tracking-tight",
+        color,
+      )}
+    >
+      {Icon && <Icon className="h-3 w-3" strokeWidth={2.5} />}
       {label}
     </span>
   );
 }
+
 
 function PriorityCard({
   rank,
