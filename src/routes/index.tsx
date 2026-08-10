@@ -343,14 +343,17 @@ function Dashboard() {
                   <tr
                     key={d.id}
                     onClick={() => setSelected(d)}
-                    className="cursor-pointer border-b border-border/40 transition-colors last:border-0 hover:bg-muted/40"
+                    className="group cursor-pointer border-b border-border/40 transition-colors last:border-0 hover:bg-surface-muted"
                   >
                     <td className="px-4 py-3">
-                      <div className="font-medium">{d.name}</div>
+                      <div className="font-medium transition-colors group-hover:text-foreground">
+                        {d.name}
+                      </div>
                       <div className="text-xs text-muted-foreground">
                         {d.city} · {d.brand}
                       </div>
                     </td>
+
                     <NumCell value={d.leads.toLocaleString()} delta={d.leadsDelta} />
                     <NumCell value={d.sales.toLocaleString()} delta={d.salesDelta} />
                     <NumCell value={formatPct(d.closeRate)} deltaPt={d.closeRateDelta} />
