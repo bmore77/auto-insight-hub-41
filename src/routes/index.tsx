@@ -124,27 +124,28 @@ function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="page-canvas min-h-screen bg-background text-foreground">
       {/* Header */}
-      <header className="border-b border-border/60">
-        <div className="mx-auto flex max-w-[1400px] items-center justify-between px-8 py-5">
+      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
+        <div className="mx-auto flex max-w-[1400px] items-center justify-between px-8 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground text-background text-sm font-semibold">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-foreground text-background text-sm font-semibold shadow-soft">
               A
             </div>
             <div>
-              <div className="text-sm font-medium tracking-tight">Auto Canada</div>
+              <div className="text-sm font-semibold tracking-tight">Auto Canada</div>
               <div className="text-xs text-muted-foreground">Dealership Priority</div>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <nav className="mr-2 flex items-center gap-1 text-sm">
+            <nav className="mr-2 flex items-center gap-1 rounded-xl border border-border/60 bg-surface-muted/70 p-1 text-sm">
               <Link
                 to="/"
-                className="rounded-md bg-muted px-3 py-1.5 text-foreground"
+                className="rounded-lg bg-card px-3 py-1.5 font-medium text-foreground shadow-soft"
               >
                 Dashboard
               </Link>
+
               <Link
                 to="/priority"
                 className="rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
