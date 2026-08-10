@@ -455,19 +455,29 @@ function PriorityCard({
   onClick: () => void;
 }) {
   const data = dealership.trend.map((v, i) => ({ i, v }));
+  const accent =
+    dealership.priorityScore >= 70
+      ? "var(--danger)"
+      : dealership.priorityScore >= 40
+      ? "var(--warning)"
+      : "var(--success)";
   return (
     <button
       onClick={onClick}
-      className="group flex flex-col rounded-2xl border border-border/60 bg-card p-5 text-left transition-all hover:border-border hover:shadow-sm"
+      className="group relative flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-card p-5 text-left shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:border-border hover:shadow-raised"
     >
+      <span
+        className="absolute inset-x-0 top-0 h-[3px] opacity-70 transition-opacity group-hover:opacity-100"
+        style={{ background: `linear-gradient(90deg, ${accent}, transparent)` }}
+      />
       <div className="flex items-start justify-between">
-        <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-          #{rank}
+        <span className="num inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-surface-muted px-1.5 text-[11px] font-semibold text-muted-foreground">
+          {rank}
         </span>
         <PriorityPill score={dealership.priorityScore} />
       </div>
       <div className="mt-3">
-        <div className="font-medium leading-tight">{dealership.name}</div>
+        <div className="font-semibold leading-tight tracking-tight">{dealership.name}</div>
         <div className="mt-0.5 text-xs text-muted-foreground">
           {dealership.city} · {dealership.brand}
         </div>
@@ -476,7 +486,7 @@ function PriorityCard({
         {dealership.reasons.slice(0, 3).map((r) => (
           <span
             key={r}
-            className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground/80"
+            className="rounded-full border border-border/60 bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-foreground/80"
           >
             {r}
           </span>
@@ -491,10 +501,9 @@ function PriorityCard({
             <Line
               type="monotone"
               dataKey="v"
-              stroke="currentColor"
-              strokeWidth={1.5}
+              stroke={accent}
+              strokeWidth={1.75}
               dot={false}
-              className="text-foreground/60"
             />
           </LineChart>
         </ResponsiveContainer>
@@ -504,14 +513,14 @@ function PriorityCard({
 }
 
 function PriorityPill({ score }: { score: number }) {
-  const level =
-    score >= 70 ? "high" : score >= 40 ? "med" : "low";
+  const level = score >= 70 ? "high" : score >= 40 ? "med" : "low";
   const styles =
     level === "high"
-      ? "bg-rose-50 text-rose-700 ring-rose-200"
+      ? "bg-danger-soft text-danger ring-danger-border"
       : level === "med"
-      ? "bg-amber-50 text-amber-700 ring-amber-200"
-      : "bg-emerald-50 text-emerald-700 ring-emerald-200";
+      ? "bg-warning-soft text-warning ring-warning-border"
+      : "bg-success-soft text-success ring-success-border";
+
   return (
     <span
       className={cn(
