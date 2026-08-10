@@ -303,10 +303,11 @@ function Dashboard() {
             </Select>
           </div>
 
-          <div className="overflow-hidden rounded-2xl border border-border/60">
+          <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-soft">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border/60 bg-muted/30 text-[11px] uppercase tracking-wider text-muted-foreground">
+                <tr className="border-b border-border/60 bg-surface-muted/80 text-[11px] uppercase tracking-wider text-muted-foreground backdrop-blur">
+
                   <Th onClick={() => toggleSort("name")} active={sortKey === "name"} dir={sortDir} className="text-left">
                     Dealership
                   </Th>
