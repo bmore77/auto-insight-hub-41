@@ -97,7 +97,7 @@ function PriorityPage() {
       <header className="border-b border-border/60">
         <div className="mx-auto flex max-w-[1400px] items-center justify-between px-8 py-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground text-background text-sm font-semibold">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-gradient text-primary-foreground text-sm font-semibold">
               A
             </div>
             <div>

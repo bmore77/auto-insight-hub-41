@@ -129,11 +129,11 @@ function Dashboard() {
       <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
         <div className="mx-auto flex max-w-[1400px] items-center justify-between px-8 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-foreground text-background text-sm font-semibold shadow-soft">
+            <div className="bg-brand-gradient flex h-9 w-9 items-center justify-center rounded-xl text-sm font-semibold text-primary-foreground shadow-soft">
               A
             </div>
             <div>
-              <div className="text-sm font-semibold tracking-tight">Auto Canada</div>
+              <div className="font-display text-sm font-semibold tracking-tight">Auto Canada</div>
               <div className="text-xs text-muted-foreground">Dealership Priority</div>
             </div>
           </div>
@@ -141,10 +141,11 @@ function Dashboard() {
             <nav className="mr-2 flex items-center gap-1 rounded-xl border border-border/60 bg-surface-muted/70 p-1 text-sm">
               <Link
                 to="/"
-                className="rounded-lg bg-card px-3 py-1.5 font-medium text-foreground shadow-soft"
+                className="rounded-lg bg-card px-3 py-1.5 font-medium text-brand shadow-soft ring-1 ring-inset ring-brand/15"
               >
                 Dashboard
               </Link>
+
 
               <Link
                 to="/priority"
@@ -202,17 +203,18 @@ function Dashboard() {
       <main className="mx-auto max-w-[1400px] px-8 py-10">
         {/* Title */}
         <div className="mb-8">
-          <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/70 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-            <span className="h-1.5 w-1.5 rounded-full bg-danger" />
+          <div className="inline-flex items-center gap-2 rounded-full border border-brand/20 bg-brand-soft px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-brand">
+            <span className="h-1.5 w-1.5 rounded-full bg-brand" />
             Network priority
           </div>
-          <h1 className="mt-3 text-[32px] font-semibold leading-tight tracking-tight">
+          <h1 className="font-display mt-3 text-[34px] font-semibold leading-tight tracking-tight">
             Where to focus — {period}
           </h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
             {filtered.length} dealerships · comparing {compare.toLowerCase()}
           </p>
         </div>
+
 
         {/* KPI Strip */}
         <section className="mb-10 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border/60 bg-border/60 shadow-soft md:grid-cols-3 lg:grid-cols-6">
