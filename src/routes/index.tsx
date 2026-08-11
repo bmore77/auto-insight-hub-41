@@ -483,12 +483,16 @@ function PriorityCard({
         </span>
         <PriorityPill score={dealership.priorityScore} />
       </div>
-      <div className="mt-3">
-        <div className="font-semibold leading-tight tracking-tight">{dealership.name}</div>
-        <div className="mt-0.5 text-xs text-muted-foreground">
-          {dealership.city} · {dealership.brand}
+      <div className="mt-3 flex items-start gap-2.5">
+        <BrandMark brand={dealership.brand} size="md" />
+        <div className="min-w-0">
+          <div className="font-semibold leading-tight tracking-tight">{dealership.name}</div>
+          <div className="mt-0.5 text-xs text-muted-foreground">
+            {dealership.city} · {dealership.brand}
+          </div>
         </div>
       </div>
+
       <div className="mt-4 flex flex-wrap gap-1.5">
         {dealership.reasons.slice(0, 3).map((r) => (
           <span
