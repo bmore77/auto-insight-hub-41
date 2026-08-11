@@ -635,8 +635,14 @@ function StoreDrawer({
                   {store.region} · {store.brand}
                 </span>
               </div>
-              <SheetTitle className="text-xl">{store.name}</SheetTitle>
-              <SheetDescription>{store.city}</SheetDescription>
+              <div className="flex items-center gap-3">
+                <BrandMark brand={store.brand} size="lg" />
+                <div>
+                  <SheetTitle className="text-xl">{store.name}</SheetTitle>
+                  <SheetDescription>{store.city}</SheetDescription>
+                </div>
+              </div>
+
             </SheetHeader>
 
             <div className="mt-6 grid grid-cols-2 gap-3">
