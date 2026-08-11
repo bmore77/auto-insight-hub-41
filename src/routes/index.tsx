@@ -20,6 +20,8 @@ import {
 } from "@/lib/dealerships";
 import { useDashboardData } from "@/lib/snapshots";
 import { SnapshotPicker } from "@/components/SnapshotPicker";
+import { BrandMark } from "@/components/BrandMark";
+
 import {
   Sheet,
   SheetContent,
