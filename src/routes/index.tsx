@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import acLogo from "@/assets/auto-canada.webp.asset.json";
 import { useMemo, useState } from "react";
 import {
   LineChart,
@@ -129,13 +130,9 @@ function Dashboard() {
       <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
         <div className="mx-auto flex max-w-[1400px] items-center justify-between px-8 py-4">
           <div className="flex items-center gap-3">
-            <div className="bg-brand-gradient flex h-9 w-9 items-center justify-center rounded-xl text-sm font-semibold text-primary-foreground shadow-soft">
-              A
-            </div>
-            <div>
-              <div className="font-display text-sm font-semibold tracking-tight">Auto Canada</div>
-              <div className="text-xs text-muted-foreground">Dealership Priority</div>
-            </div>
+            <img src={acLogo.url} alt="AutoCanada" className="h-7 w-auto" />
+            <div className="hidden h-6 w-px bg-border sm:block" />
+            <div className="hidden text-xs text-muted-foreground sm:block">Dealership Priority</div>
           </div>
           <div className="flex items-center gap-3">
             <nav className="mr-2 flex items-center gap-1 rounded-xl border border-border/60 bg-surface-muted/70 p-1 text-sm">
