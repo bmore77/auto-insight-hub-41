@@ -20,6 +20,8 @@ import {
 } from "@/lib/dealerships";
 import { useDashboardData } from "@/lib/snapshots";
 import { SnapshotPicker } from "@/components/SnapshotPicker";
+import { BrandMark } from "@/components/BrandMark";
+
 import {
   Sheet,
   SheetContent,
@@ -345,13 +347,19 @@ function Dashboard() {
                     className="group cursor-pointer border-b border-border/40 transition-colors last:border-0 hover:bg-surface-muted"
                   >
                     <td className="px-4 py-3">
-                      <div className="font-medium transition-colors group-hover:text-foreground">
-                        {d.name}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {d.city} · {d.brand}
+                      <div className="flex items-center gap-2.5">
+                        <BrandMark brand={d.brand} size="sm" />
+                        <div className="min-w-0">
+                          <div className="font-medium transition-colors group-hover:text-foreground">
+                            {d.name}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {d.city} · {d.brand}
+                          </div>
+                        </div>
                       </div>
                     </td>
+
 
                     <NumCell value={d.leads.toLocaleString()} delta={d.leadsDelta} />
                     <NumCell value={d.sales.toLocaleString()} delta={d.salesDelta} />
@@ -475,12 +483,16 @@ function PriorityCard({
         </span>
         <PriorityPill score={dealership.priorityScore} />
       </div>
-      <div className="mt-3">
-        <div className="font-semibold leading-tight tracking-tight">{dealership.name}</div>
-        <div className="mt-0.5 text-xs text-muted-foreground">
-          {dealership.city} · {dealership.brand}
+      <div className="mt-3 flex items-start gap-2.5">
+        <BrandMark brand={dealership.brand} size="md" />
+        <div className="min-w-0">
+          <div className="font-semibold leading-tight tracking-tight">{dealership.name}</div>
+          <div className="mt-0.5 text-xs text-muted-foreground">
+            {dealership.city} · {dealership.brand}
+          </div>
         </div>
       </div>
+
       <div className="mt-4 flex flex-wrap gap-1.5">
         {dealership.reasons.slice(0, 3).map((r) => (
           <span
@@ -623,8 +635,14 @@ function StoreDrawer({
                   {store.region} · {store.brand}
                 </span>
               </div>
-              <SheetTitle className="text-xl">{store.name}</SheetTitle>
-              <SheetDescription>{store.city}</SheetDescription>
+              <div className="flex items-center gap-3">
+                <BrandMark brand={store.brand} size="lg" />
+                <div>
+                  <SheetTitle className="text-xl">{store.name}</SheetTitle>
+                  <SheetDescription>{store.city}</SheetDescription>
+                </div>
+              </div>
+
             </SheetHeader>
 
             <div className="mt-6 grid grid-cols-2 gap-3">

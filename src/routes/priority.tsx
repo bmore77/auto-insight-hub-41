@@ -22,6 +22,8 @@ import {
 import { ArrowDown, ArrowUp, Flame, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StoreDrilldown } from "@/components/StoreDrilldown";
+import { BrandMark } from "@/components/BrandMark";
+
 import { STATUS_LABEL, useActionPlans, type ActionPlan } from "@/lib/action-plans";
 
 export const Route = createFileRoute("/priority")({
@@ -320,7 +322,9 @@ function PriorityRow({
         </span>
       </div>
 
-      <div className="min-w-0">
+      <div className="flex min-w-0 items-start gap-3">
+        <BrandMark brand={d.brand} size="lg" className="mt-0.5" />
+        <div className="min-w-0">
         <div className="flex items-center gap-2">
           <span className="truncate font-medium">{d.name}</span>
           {t === "high" && <Flame className="h-3.5 w-3.5 text-rose-600" />}
@@ -342,6 +346,7 @@ function PriorityRow({
         <div className="mt-0.5 text-xs text-muted-foreground">
           {d.city} · {d.region} · {d.brand}
         </div>
+
         <div className="mt-2 flex flex-wrap gap-1.5">
           {d.reasons.slice(0, 4).map((r) => (
             <span
@@ -355,7 +360,9 @@ function PriorityRow({
             <span className="text-[11px] text-muted-foreground">Trending stable</span>
           )}
         </div>
+        </div>
       </div>
+
 
       <div className="space-y-1.5">
         <div className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
