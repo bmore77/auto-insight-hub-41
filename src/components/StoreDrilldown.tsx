@@ -1,3 +1,4 @@
+import { BrandMark } from "@/components/BrandMark";
 import { useMemo, useState } from "react";
 import {
   Area,
