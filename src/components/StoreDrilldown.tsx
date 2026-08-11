@@ -91,14 +91,20 @@ export function StoreDrilldown(props: Props) {
         {d && (
           <>
             <SheetHeader className="border-b border-border/60 px-6 py-5">
-              <SheetTitle className="text-left text-lg font-semibold tracking-tight">
-                {d.name}
-              </SheetTitle>
-              <p className="text-left text-xs text-muted-foreground">
-                {rank ? `Rank ${rank} · ` : ""}
-                {d.city} · {d.region} · {d.brand}
-              </p>
+              <div className="flex items-center gap-3">
+                <BrandMark brand={d.brand} size="lg" />
+                <div>
+                  <SheetTitle className="text-left text-lg font-semibold tracking-tight">
+                    {d.name}
+                  </SheetTitle>
+                  <p className="text-left text-xs text-muted-foreground">
+                    {rank ? `Rank ${rank} · ` : ""}
+                    {d.city} · {d.region} · {d.brand}
+                  </p>
+                </div>
+              </div>
             </SheetHeader>
+
             <div className="space-y-8 px-6 py-6">
               <ScoreExplainer d={d} />
               <Comparison d={d} />
