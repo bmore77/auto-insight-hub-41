@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import acLogo from "@/assets/auto-canada.webp.asset.json";
 import { useEffect, useMemo, useState } from "react";
 import {
   computeMetrics,
@@ -184,13 +185,9 @@ function DataPage() {
       <header className="border-b border-border/60">
         <div className="mx-auto flex max-w-[1400px] items-center justify-between px-8 py-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-gradient text-primary-foreground text-sm font-semibold">
-              A
-            </div>
-            <div>
-              <div className="text-sm font-medium tracking-tight">Auto Canada</div>
-              <div className="text-xs text-muted-foreground">Data Quality</div>
-            </div>
+            <img src={acLogo.url} alt="AutoCanada" className="h-7 w-auto" />
+            <div className="hidden h-6 w-px bg-border sm:block" />
+            <div className="hidden text-xs text-muted-foreground sm:block">Data Quality</div>
           </div>
           <nav className="flex items-center gap-1 text-sm">
             <Link
