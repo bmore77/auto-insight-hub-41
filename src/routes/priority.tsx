@@ -358,7 +358,9 @@ function PriorityRow({
             <span className="text-[11px] text-muted-foreground">Trending stable</span>
           )}
         </div>
+        </div>
       </div>
+
 
       <div className="space-y-1.5">
         <div className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
