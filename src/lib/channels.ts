@@ -7,8 +7,8 @@ export const CHANNEL_META: Record<
   { label: string; short: string; color: string; accent: string }
 > = {
   google: { label: "Google Ads", short: "Google", color: "#1a73e8", accent: "oklch(0.58 0.18 258)" },
-  meta: { label: "Meta Ads", short: "Meta", color: "#0866ff", accent: "oklch(0.62 0.2 265)" },
-  bing: { label: "Bing Ads", short: "Bing", color: "#00897b", accent: "oklch(0.58 0.11 190)" },
+  meta: { label: "Meta Ads", short: "Meta", color: "#00b4d8", accent: "oklch(0.62 0.2 265)" },
+  bing: { label: "Bing Ads", short: "Bing", color: "#10b981", accent: "oklch(0.58 0.11 190)" },
 };
 
 export const CHANNEL_ORDER: ChannelKey[] = ["google", "meta", "bing"];
