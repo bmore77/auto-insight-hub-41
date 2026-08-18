@@ -203,7 +203,7 @@ function Dashboard() {
 
       <main className="mx-auto max-w-[1400px] px-8 py-10">
         {/* Title */}
-        <div className="aurora animate-fade-up mb-8 rounded-3xl">
+        <div className="aurora animate-fade-up -mx-6 mb-8 rounded-3xl px-6 py-5">
           <div className="relative">
             <div className="inline-flex items-center gap-2 rounded-full border border-brand/20 bg-brand-soft px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-brand">
               <span className="animate-pulse-ring h-1.5 w-1.5 rounded-full bg-brand" />
