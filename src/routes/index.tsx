@@ -471,7 +471,13 @@ function PriorityCard({
   return (
     <button
       onClick={onClick}
-      className="group relative flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-card p-5 text-left shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:border-border hover:shadow-raised"
+      style={{ animationDelay: `${rank * 60}ms` }}
+      onMouseMove={(e) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        e.currentTarget.style.setProperty("--mx", `${e.clientX - r.left}px`);
+        e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
+      }}
+      className="group animate-fade-up lift spotlight relative flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-card p-5 text-left shadow-soft"
     >
       <span
         className="absolute inset-x-0 top-0 h-[3px] opacity-70 transition-opacity group-hover:opacity-100"
