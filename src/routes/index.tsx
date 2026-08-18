@@ -21,6 +21,7 @@ import {
 import { useDashboardData } from "@/lib/snapshots";
 import { SnapshotPicker } from "@/components/SnapshotPicker";
 import { BrandMark } from "@/components/BrandMark";
+import { networkChannelTotals } from "@/lib/channels";
 
 import {
   Sheet,
