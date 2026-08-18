@@ -308,7 +308,7 @@ function PriorityRow({
     <button
       onClick={onOpen}
       className={cn(
-        "group grid w-full grid-cols-[56px_1fr_340px_200px] items-center gap-6 rounded-2xl border bg-card px-5 py-4 text-left transition-all hover:shadow-sm",
+        "group lift spotlight animate-fade-up grid w-full grid-cols-[56px_1fr_340px_200px] items-center gap-6 rounded-2xl border bg-card px-5 py-4 text-left shadow-soft",
         border,
         plan?.status === "addressed" && "opacity-70",
       )}
