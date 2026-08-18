@@ -841,7 +841,7 @@ function ChannelMix({
                 <MixStat label="Close %" value={formatPct(c.closeRate)} bad={c.closeRate < c.closeRatePrev} />
                 <MixStat label="Cost / sale" value={formatCurrency(c.cps)} bad={badCpl} />
               </div>
-              <div className="mt-3 text-[11px] font-medium text-brand opacity-0 transition-opacity group-hover:opacity-100 [button:hover>&]:opacity-100">
+              <div className="mt-3 text-[11px] font-medium text-brand opacity-70">
                 View channel drilldown
               </div>
             </button>
