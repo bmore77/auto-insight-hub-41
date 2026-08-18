@@ -156,14 +156,22 @@ export function ChannelNetworkDrawer({
                   <LineChart data={series}>
                     <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="2 4" vertical={false} />
                     <XAxis dataKey="week" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-                    <YAxis yAxisId="l" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} width={40} />
+                    <YAxis
+                      yAxisId="l"
+                      tick={{ fontSize: 10 }}
+                      tickLine={false}
+                      axisLine={false}
+                      width={52}
+                      tickFormatter={(v: number) => `$${Math.round(v / 1000)}k`}
+                    />
                     <YAxis
                       yAxisId="r"
                       orientation="right"
                       tick={{ fontSize: 10 }}
                       tickLine={false}
                       axisLine={false}
-                      width={34}
+                      width={40}
+                      tickFormatter={(v: number) => `$${Math.round(v)}`}
                     />
                     <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
                     <Line yAxisId="l" type="monotone" dataKey="spend" stroke={meta.color} strokeWidth={2} dot={false} />
