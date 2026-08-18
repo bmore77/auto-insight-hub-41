@@ -1,4 +1,5 @@
 import { BrandMark } from "@/components/BrandMark";
+import { ChannelBreakdown } from "@/components/ChannelBreakdown";
 import { useMemo, useState } from "react";
 import {
   Area,
