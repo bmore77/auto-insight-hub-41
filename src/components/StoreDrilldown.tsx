@@ -93,7 +93,7 @@ export function StoreDrilldown(props: Props) {
           <>
             <SheetHeader className="border-b border-border/60 px-6 py-5">
               <div className="flex items-center gap-3">
-                <BrandMark brand={d.brand} size="lg" />
+                <BrandMark brand={d.brand} storeId={d.id} size="lg" />
                 <div>
                   <SheetTitle className="text-left text-lg font-semibold tracking-tight">
                     {d.name}
