@@ -253,3 +253,129 @@
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
 }
+
+/* ---- 22nd-century motion & material layer ---- */
+@keyframes ac-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ac-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes ac-pulse-ring {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--brand) 35%, transparent); }
+  50% { box-shadow: 0 0 0 8px color-mix(in oklab, var(--brand) 0%, transparent); }
+}
+@keyframes ac-aurora {
+  0% { transform: translate3d(-6%, -4%, 0) scale(1); }
+  50% { transform: translate3d(6%, 4%, 0) scale(1.12); }
+  100% { transform: translate3d(-6%, -4%, 0) scale(1); }
+}
+
+@utility animate-fade-up {
+  animation: ac-fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@utility animate-pulse-ring {
+  animation: ac-pulse-ring 2.4s ease-out infinite;
+}
+
+/* Glass surface with inner highlight */
+@utility glass {
+  background: color-mix(in oklab, var(--card) 78%, transparent);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, white 55%, transparent), var(--shadow-soft);
+}
+
+/* Card that lifts and glows on hover */
+@utility lift {
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease,
+    border-color 0.35s ease;
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-raised);
+    border-color: color-mix(in oklab, var(--brand) 28%, var(--border));
+  }
+}
+
+/* Gradient hairline top edge on a card */
+@utility edge-brand {
+  position: relative;
+  &::before {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 1px;
+    background: var(--gradient-brand);
+    opacity: 0.65;
+  }
+}
+
+/* Cursor-follow spotlight: needs --mx/--my set inline or via JS */
+@utility spotlight {
+  position: relative;
+  isolation: isolate;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(
+      340px circle at var(--mx, 50%) var(--my, 0%),
+      color-mix(in oklab, var(--brand) 14%, transparent),
+      transparent 65%
+    );
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+    z-index: -1;
+  }
+  &:hover::after {
+    opacity: 1;
+  }
+}
+
+@utility text-gradient-brand {
+  background-image: var(--gradient-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility shimmer {
+  background-image: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--brand) 12%, transparent),
+    transparent
+  );
+  background-size: 200% 100%;
+  animation: ac-shimmer 2.2s linear infinite;
+}
+
+@utility aurora {
+  position: relative;
+  overflow: hidden;
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -40%;
+    background: radial-gradient(closest-side, color-mix(in oklab, var(--brand) 26%, transparent), transparent),
+      radial-gradient(closest-side at 70% 60%, color-mix(in oklab, var(--brand-blue) 28%, transparent), transparent);
+    filter: blur(42px);
+    animation: ac-aurora 18s ease-in-out infinite;
+    pointer-events: none;
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
