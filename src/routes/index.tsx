@@ -403,7 +403,7 @@ function Kpi({
   invert?: boolean;
 }) {
   return (
-    <div className="bg-card p-5 transition-colors hover:bg-surface-muted">
+    <div className="group relative bg-card p-5 transition-colors duration-300 hover:bg-surface-muted">
       <div className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
         {label}
       </div>
