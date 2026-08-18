@@ -309,7 +309,7 @@ function PriorityRow({
     <button
       onClick={onOpen}
       className={cn(
-        "group lift spotlight animate-fade-up grid w-full grid-cols-[56px_1fr_340px_200px] items-center gap-6 rounded-2xl border bg-card px-5 py-4 text-left shadow-soft",
+        "group lift spotlight animate-fade-up grid w-full grid-cols-[56px_1fr_320px_236px] items-center gap-6 rounded-2xl border bg-card px-5 py-4 text-left shadow-soft",
         border,
         plan?.status === "addressed" && "opacity-70",
       )}
@@ -576,19 +576,21 @@ function ChannelStrip({ d }: { d: DealershipMetrics }) {
           />
         ))}
       </div>
-      <div className="mt-1 flex items-center justify-end gap-2 text-[10px] text-muted-foreground">
+      <div className="mt-1 flex items-center justify-end gap-2 whitespace-nowrap text-[10px] text-muted-foreground">
         {rows.map((c) => (
           <span key={c.key} className="inline-flex items-center gap-1">
             <span className="h-1.5 w-1.5 rounded-full" style={{ background: c.color }} />
             {CHANNEL_META[c.key].short}
           </span>
         ))}
-        {worst && worst.riskScore >= 40 && (
-          <span className="rounded-full bg-danger-soft px-1.5 py-0.5 font-medium text-danger">
-            {CHANNEL_META[worst.key].short} at risk
-          </span>
-        )}
       </div>
+      {worst && worst.riskScore >= 40 && (
+        <div className="mt-1 flex justify-end">
+          <span className="whitespace-nowrap rounded-full bg-danger-soft px-1.5 py-0.5 text-[10px] font-medium text-danger">
+            {CHANNEL_META[worst.key].short} spend at risk
+          </span>
+        </div>
+      )}
     </div>
   );
 }
