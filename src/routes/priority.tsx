@@ -557,3 +557,37 @@ function tier(score: number): "high" | "med" | "low" {
 // unused imports guard (keep arrow icons available for future direction indicators)
 void ArrowUp;
 void ArrowDown;
+
+/* ---------- channel spend strip on each leaderboard row ---------- */
+
+function ChannelStrip({ d }: { d: DealershipMetrics }) {
+  const rows = channelBreakdown(d);
+  const worst = rows.reduce((a, b) => (b.riskScore > a.riskScore ? b : a), rows[0]);
+  return (
+    <div className="w-full">
+      <div className="flex h-1.5 w-full gap-0.5 overflow-hidden rounded-full">
+        {rows.map((c) => (
+          <span
+            key={c.key}
+            className="h-full rounded-full"
+            style={{ width: `${Math.max(3, c.share * 100)}%`, background: c.color }}
+            title={`${c.label}: ${formatCurrency(c.spend)}`}
+          />
+        ))}
+      </div>
+      <div className="mt-1 flex items-center justify-end gap-2 text-[10px] text-muted-foreground">
+        {rows.map((c) => (
+          <span key={c.key} className="inline-flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: c.color }} />
+            {CHANNEL_META[c.key].short}
+          </span>
+        ))}
+        {worst && worst.riskScore >= 40 && (
+          <span className="rounded-full bg-danger-soft px-1.5 py-0.5 font-medium text-danger">
+            {CHANNEL_META[worst.key].short} at risk
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
