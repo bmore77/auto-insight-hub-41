@@ -1,4 +1,5 @@
 import { BrandMark } from "@/components/BrandMark";
+import { ChannelBreakdown } from "@/components/ChannelBreakdown";
 import { useMemo, useState } from "react";
 import {
   Area,
@@ -109,6 +110,7 @@ export function StoreDrilldown(props: Props) {
             <div className="space-y-8 px-6 py-6">
               <ScoreExplainer d={d} />
               <Comparison d={d} />
+              <ChannelBreakdown d={d} />
               <Charts d={d} />
               <PlanEditor {...props} d={d} />
             </div>

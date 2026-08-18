@@ -21,6 +21,8 @@ import {
 import { useDashboardData } from "@/lib/snapshots";
 import { SnapshotPicker } from "@/components/SnapshotPicker";
 import { BrandMark } from "@/components/BrandMark";
+import { networkChannelTotals } from "@/lib/channels";
+import { ChannelBreakdown } from "@/components/ChannelBreakdown";
 
 import {
   Sheet,
@@ -201,17 +203,19 @@ function Dashboard() {
 
       <main className="mx-auto max-w-[1400px] px-8 py-10">
         {/* Title */}
-        <div className="mb-8">
-          <div className="inline-flex items-center gap-2 rounded-full border border-brand/20 bg-brand-soft px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-brand">
-            <span className="h-1.5 w-1.5 rounded-full bg-brand" />
-            Network priority
+        <div className="aurora animate-fade-up -mx-6 mb-8 rounded-3xl px-6 py-5">
+          <div className="relative">
+            <div className="inline-flex items-center gap-2 rounded-full border border-brand/20 bg-brand-soft px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-brand">
+              <span className="animate-pulse-ring h-1.5 w-1.5 rounded-full bg-brand" />
+              Network priority
+            </div>
+            <h1 className="font-display text-gradient-brand mt-3 text-[38px] font-semibold leading-tight tracking-tight">
+              Where to focus — {period}
+            </h1>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              {filtered.length} dealerships · comparing {compare.toLowerCase()}
+            </p>
           </div>
-          <h1 className="font-display mt-3 text-[34px] font-semibold leading-tight tracking-tight">
-            Where to focus — {period}
-          </h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            {filtered.length} dealerships · comparing {compare.toLowerCase()}
-          </p>
         </div>
 
 
@@ -244,6 +248,9 @@ function Dashboard() {
             invert
           />
         </section>
+
+        {/* Channel mix */}
+        <ChannelMix list={filtered} />
 
         {/* Priority hero */}
         <section className="mb-12">
@@ -403,7 +410,7 @@ function Kpi({
   invert?: boolean;
 }) {
   return (
-    <div className="bg-card p-5 transition-colors hover:bg-surface-muted">
+    <div className="group relative bg-card p-5 transition-colors duration-300 hover:bg-surface-muted">
       <div className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
         {label}
       </div>
@@ -471,7 +478,13 @@ function PriorityCard({
   return (
     <button
       onClick={onClick}
-      className="group relative flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-card p-5 text-left shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:border-border hover:shadow-raised"
+      style={{ animationDelay: `${rank * 60}ms` }}
+      onMouseMove={(e) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        e.currentTarget.style.setProperty("--mx", `${e.clientX - r.left}px`);
+        e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
+      }}
+      className="group animate-fade-up lift spotlight relative flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-card p-5 text-left shadow-soft"
     >
       <span
         className="absolute inset-x-0 top-0 h-[3px] opacity-70 transition-opacity group-hover:opacity-100"
@@ -724,6 +737,10 @@ function StoreDrawer({
                 </p>
               )}
             </div>
+
+            <div className="mt-8">
+              <ChannelBreakdown d={store} />
+            </div>
           </>
         )}
       </SheetContent>
@@ -755,6 +772,80 @@ function MiniStat({
           <DeltaChip value={delta} valuePt={deltaPt} invert={invert} />
         </div>
       )}
+    </div>
+  );
+}
+
+/* ---------- network channel mix ---------- */
+
+function ChannelMix({ list }: { list: DealershipMetrics[] }) {
+  const rows = useMemo(() => networkChannelTotals(list), [list]);
+  const total = rows.reduce((a, b) => a + b.spend, 0);
+
+  return (
+    <section className="mb-12">
+      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-lg font-semibold tracking-tight">Ad spend by channel</h2>
+        <span className="num text-xs text-muted-foreground">
+          {formatCurrency(total)} across Google, Meta and Bing · open any store for channel detail
+        </span>
+      </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        {rows.map((c, i) => {
+          const badCpl = c.cpl > c.cplPrev;
+          return (
+            <div
+              key={c.key}
+              style={{ animationDelay: `${i * 70}ms` }}
+              className="animate-fade-up lift edge-brand relative overflow-hidden rounded-2xl border border-border/60 bg-card p-5 shadow-soft"
+            >
+              <div className="flex items-center gap-2.5">
+                <span
+                  className="grid h-7 w-7 place-items-center rounded-lg text-[11px] font-semibold text-white"
+                  style={{ background: c.color }}
+                >
+                  {c.key === "google" ? "G" : c.key === "meta" ? "M" : "B"}
+                </span>
+                <span className="text-sm font-medium">{c.label}</span>
+                <span className="num ml-auto text-xs text-muted-foreground">
+                  {(c.share * 100).toFixed(0)}% of spend
+                </span>
+              </div>
+              <div className="num mt-3 text-2xl font-semibold tracking-tight">
+                {formatCurrency(c.spend)}
+              </div>
+              <div className="mt-1 flex items-center gap-3">
+                <DeltaChip value={c.spendDelta} invert />
+                <span className="num text-[11px] text-muted-foreground">
+                  {c.leads.toLocaleString()} leads · {c.sales.toLocaleString()} sales
+                </span>
+              </div>
+              <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-surface-muted">
+                <div
+                  className="h-full rounded-full transition-[width] duration-700"
+                  style={{ width: `${c.share * 100}%`, background: c.color }}
+                />
+              </div>
+              <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                <MixStat label="CPL" value={formatCurrency(c.cpl)} bad={badCpl} />
+                <MixStat label="Close %" value={formatPct(c.closeRate)} bad={c.closeRate < c.closeRatePrev} />
+                <MixStat label="Cost / sale" value={formatCurrency(c.cps)} bad={badCpl} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function MixStat({ label, value, bad }: { label: string; value: string; bad: boolean }) {
+  return (
+    <div className="rounded-xl border border-border/50 bg-surface-muted/60 px-2 py-2">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className={cn("num text-sm font-semibold", bad ? "text-danger" : "text-foreground")}>
+        {value}
+      </div>
     </div>
   );
 }

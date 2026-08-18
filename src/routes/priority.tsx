@@ -23,6 +23,7 @@ import { ArrowDown, ArrowUp, Flame, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StoreDrilldown } from "@/components/StoreDrilldown";
 import { BrandMark } from "@/components/BrandMark";
+import { channelBreakdown, CHANNEL_META } from "@/lib/channels";
 
 import { STATUS_LABEL, useActionPlans, type ActionPlan } from "@/lib/action-plans";
 
@@ -308,7 +309,7 @@ function PriorityRow({
     <button
       onClick={onOpen}
       className={cn(
-        "group grid w-full grid-cols-[56px_1fr_340px_200px] items-center gap-6 rounded-2xl border bg-card px-5 py-4 text-left transition-all hover:shadow-sm",
+        "group lift spotlight animate-fade-up grid w-full grid-cols-[56px_1fr_320px_236px] items-center gap-6 rounded-2xl border bg-card px-5 py-4 text-left shadow-soft",
         border,
         plan?.status === "addressed" && "opacity-70",
       )}
@@ -408,6 +409,7 @@ function PriorityRow({
           <MiniMetric label="CPL" value={formatCurrency(d.cpl)} />
           <MiniMetric label="CPS" value={formatCurrency(d.cps)} />
         </div>
+        <ChannelStrip d={d} />
       </div>
     </button>
   );
@@ -556,3 +558,39 @@ function tier(score: number): "high" | "med" | "low" {
 // unused imports guard (keep arrow icons available for future direction indicators)
 void ArrowUp;
 void ArrowDown;
+
+/* ---------- channel spend strip on each leaderboard row ---------- */
+
+function ChannelStrip({ d }: { d: DealershipMetrics }) {
+  const rows = channelBreakdown(d);
+  const worst = rows.reduce((a, b) => (b.riskScore > a.riskScore ? b : a), rows[0]);
+  return (
+    <div className="w-full">
+      <div className="flex h-1.5 w-full gap-0.5 overflow-hidden rounded-full">
+        {rows.map((c) => (
+          <span
+            key={c.key}
+            className="h-full rounded-full"
+            style={{ width: `${Math.max(3, c.share * 100)}%`, background: c.color }}
+            title={`${c.label}: ${formatCurrency(c.spend)}`}
+          />
+        ))}
+      </div>
+      <div className="mt-1 flex items-center justify-end gap-2 whitespace-nowrap text-[10px] text-muted-foreground">
+        {rows.map((c) => (
+          <span key={c.key} className="inline-flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: c.color }} />
+            {CHANNEL_META[c.key].short}
+          </span>
+        ))}
+      </div>
+      {worst && worst.riskScore >= 40 && (
+        <div className="mt-1 flex justify-end">
+          <span className="whitespace-nowrap rounded-full bg-danger-soft px-1.5 py-0.5 text-[10px] font-medium text-danger">
+            {CHANNEL_META[worst.key].short} spend at risk
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
