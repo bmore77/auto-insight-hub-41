@@ -203,17 +203,19 @@ function Dashboard() {
 
       <main className="mx-auto max-w-[1400px] px-8 py-10">
         {/* Title */}
-        <div className="mb-8">
-          <div className="inline-flex items-center gap-2 rounded-full border border-brand/20 bg-brand-soft px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-brand">
-            <span className="h-1.5 w-1.5 rounded-full bg-brand" />
-            Network priority
+        <div className="aurora animate-fade-up mb-8 rounded-3xl">
+          <div className="relative">
+            <div className="inline-flex items-center gap-2 rounded-full border border-brand/20 bg-brand-soft px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.12em] text-brand">
+              <span className="animate-pulse-ring h-1.5 w-1.5 rounded-full bg-brand" />
+              Network priority
+            </div>
+            <h1 className="font-display text-gradient-brand mt-3 text-[38px] font-semibold leading-tight tracking-tight">
+              Where to focus — {period}
+            </h1>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              {filtered.length} dealerships · comparing {compare.toLowerCase()}
+            </p>
           </div>
-          <h1 className="font-display mt-3 text-[34px] font-semibold leading-tight tracking-tight">
-            Where to focus — {period}
-          </h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            {filtered.length} dealerships · comparing {compare.toLowerCase()}
-          </p>
         </div>
 
 
