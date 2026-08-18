@@ -109,6 +109,7 @@ export function StoreDrilldown(props: Props) {
             <div className="space-y-8 px-6 py-6">
               <ScoreExplainer d={d} />
               <Comparison d={d} />
+              <ChannelBreakdown d={d} />
               <Charts d={d} />
               <PlanEditor {...props} d={d} />
             </div>
