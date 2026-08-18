@@ -245,6 +245,9 @@ function Dashboard() {
           />
         </section>
 
+        {/* Channel mix */}
+        <ChannelMix list={filtered} />
+
         {/* Priority hero */}
         <section className="mb-12">
           <div className="mb-4 flex items-baseline justify-between">
