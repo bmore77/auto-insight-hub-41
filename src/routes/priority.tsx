@@ -23,6 +23,7 @@ import { ArrowDown, ArrowUp, Flame, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StoreDrilldown } from "@/components/StoreDrilldown";
 import { BrandMark } from "@/components/BrandMark";
+import { channelBreakdown, CHANNEL_META } from "@/lib/channels";
 
 import { STATUS_LABEL, useActionPlans, type ActionPlan } from "@/lib/action-plans";
 
