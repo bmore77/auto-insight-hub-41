@@ -348,7 +348,7 @@ function Dashboard() {
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
-                        <BrandMark brand={d.brand} size="sm" />
+                        <BrandMark brand={d.brand} storeId={d.id} size="sm" />
                         <div className="min-w-0">
                           <div className="font-medium transition-colors group-hover:text-foreground">
                             {d.name}
@@ -484,7 +484,7 @@ function PriorityCard({
         <PriorityPill score={dealership.priorityScore} />
       </div>
       <div className="mt-3 flex items-start gap-2.5">
-        <BrandMark brand={dealership.brand} size="md" />
+        <BrandMark brand={dealership.brand} storeId={dealership.id} size="md" />
         <div className="min-w-0">
           <div className="font-semibold leading-tight tracking-tight">{dealership.name}</div>
           <div className="mt-0.5 text-xs text-muted-foreground">
@@ -636,7 +636,7 @@ function StoreDrawer({
                 </span>
               </div>
               <div className="flex items-center gap-3">
-                <BrandMark brand={store.brand} size="lg" />
+                <BrandMark brand={store.brand} storeId={store.id} size="lg" />
                 <div>
                   <SheetTitle className="text-xl">{store.name}</SheetTitle>
                   <SheetDescription>{store.city}</SheetDescription>

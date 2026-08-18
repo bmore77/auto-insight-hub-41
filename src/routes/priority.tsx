@@ -323,7 +323,7 @@ function PriorityRow({
       </div>
 
       <div className="flex min-w-0 items-start gap-3">
-        <BrandMark brand={d.brand} size="lg" className="mt-0.5" />
+        <BrandMark brand={d.brand} storeId={d.id} size="lg" className="mt-0.5" />
         <div className="min-w-0">
         <div className="flex items-center gap-2">
           <span className="truncate font-medium">{d.name}</span>
