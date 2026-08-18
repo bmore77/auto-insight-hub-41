@@ -734,6 +734,10 @@ function StoreDrawer({
                 </p>
               )}
             </div>
+
+            <div className="mt-8">
+              <ChannelBreakdown d={store} />
+            </div>
           </>
         )}
       </SheetContent>
