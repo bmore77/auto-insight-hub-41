@@ -21,7 +21,8 @@ import {
 import { useDashboardData } from "@/lib/snapshots";
 import { SnapshotPicker } from "@/components/SnapshotPicker";
 import { BrandMark } from "@/components/BrandMark";
-import { networkChannelTotals } from "@/lib/channels";
+import { networkChannelTotals, type NetworkChannelRow } from "@/lib/channels";
+import { ChannelNetworkDrawer } from "@/components/ChannelNetworkDrawer";
 import { ChannelBreakdown } from "@/components/ChannelBreakdown";
 
 import {
@@ -250,7 +251,7 @@ function Dashboard() {
         </section>
 
         {/* Channel mix */}
-        <ChannelMix list={filtered} />
+        <ChannelMix list={filtered} onSelectStore={setSelected} />
 
         {/* Priority hero */}
         <section className="mb-12">
@@ -778,26 +779,35 @@ function MiniStat({
 
 /* ---------- network channel mix ---------- */
 
-function ChannelMix({ list }: { list: DealershipMetrics[] }) {
+function ChannelMix({
+  list,
+  onSelectStore,
+}: {
+  list: DealershipMetrics[];
+  onSelectStore: (d: DealershipMetrics) => void;
+}) {
   const rows = useMemo(() => networkChannelTotals(list), [list]);
   const total = rows.reduce((a, b) => a + b.spend, 0);
+  const [openChannel, setOpenChannel] = useState<NetworkChannelRow | null>(null);
 
   return (
     <section className="mb-12">
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-lg font-semibold tracking-tight">Ad spend by channel</h2>
         <span className="num text-xs text-muted-foreground">
-          {formatCurrency(total)} across Google, Meta and Bing · open any store for channel detail
+          {formatCurrency(total)} across Google, Meta and Bing · open a channel for the network drilldown
         </span>
       </div>
       <div className="grid gap-4 md:grid-cols-3">
         {rows.map((c, i) => {
           const badCpl = c.cpl > c.cplPrev;
           return (
-            <div
+            <button
               key={c.key}
+              type="button"
+              onClick={() => setOpenChannel(c)}
               style={{ animationDelay: `${i * 70}ms` }}
-              className="animate-fade-up lift edge-brand relative overflow-hidden rounded-2xl border border-border/60 bg-card p-5 shadow-soft"
+              className="animate-fade-up lift spotlight edge-brand relative overflow-hidden rounded-2xl border border-border/60 bg-card p-5 text-left shadow-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
             >
               <div className="flex items-center gap-2.5">
                 <span
@@ -831,10 +841,19 @@ function ChannelMix({ list }: { list: DealershipMetrics[] }) {
                 <MixStat label="Close %" value={formatPct(c.closeRate)} bad={c.closeRate < c.closeRatePrev} />
                 <MixStat label="Cost / sale" value={formatCurrency(c.cps)} bad={badCpl} />
               </div>
-            </div>
+              <div className="mt-3 text-[11px] font-medium text-brand opacity-70">
+                View channel drilldown
+              </div>
+            </button>
           );
         })}
       </div>
+      <ChannelNetworkDrawer
+        channel={openChannel}
+        list={list}
+        onClose={() => setOpenChannel(null)}
+        onSelectStore={onSelectStore}
+      />
     </section>
   );
 }

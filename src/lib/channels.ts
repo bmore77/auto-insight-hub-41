@@ -267,3 +267,41 @@ export function networkChannelTotals(list: DealershipMetrics[]) {
     closeRatePrev: b.leadsPrev > 0 ? b.salesPrev / b.leadsPrev : 0,
   }));
 }
+
+export type NetworkChannelRow = ReturnType<typeof networkChannelTotals>[number];
+
+/** 12-point weekly series for a network-level channel row. */
+export function networkChannelSeries(row: NetworkChannelRow) {
+  const step = (prev: number, curr: number, seed: number) => {
+    const out: number[] = [];
+    for (let i = 0; i < 12; i++) {
+      const t = i / 11;
+      const wobble = Math.sin(i * 1.05 + seed) * (Math.max(prev, curr) * 0.05);
+      out.push(Math.max(0, prev + (curr - prev) * t + wobble));
+    }
+    out[11] = curr;
+    return out;
+  };
+  const seed = rand(row.key, 11) * 6;
+  const leads = step(row.leadsPrev, row.leads, seed);
+  const sales = step(row.salesPrev, row.sales, seed + 1.7);
+  const spend = step(row.spendPrev, row.spend, seed + 3.1);
+  return leads.map((l, i) => ({
+    week: `W${i + 1}`,
+    leads: Math.round(l),
+    sales: Math.round(sales[i]),
+    spend: Math.round(spend[i]),
+    close: l > 0 ? (sales[i] / l) * 100 : 0,
+    cpl: l > 0 ? spend[i] / l : 0,
+  }));
+}
+
+/** Per-store rows for one channel, ranked by how much they are dragging it down. */
+export function storesByChannel(list: DealershipMetrics[], key: ChannelKey) {
+  return list
+    .map((d) => {
+      const c = channelBreakdown(d).find((r) => r.key === key)!;
+      return { store: d, channel: c };
+    })
+    .sort((a, b) => b.channel.riskScore - a.channel.riskScore || b.channel.spend - a.channel.spend);
+}
