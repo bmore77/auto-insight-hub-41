@@ -408,6 +408,7 @@ function PriorityRow({
           <MiniMetric label="CPL" value={formatCurrency(d.cpl)} />
           <MiniMetric label="CPS" value={formatCurrency(d.cps)} />
         </div>
+        <ChannelStrip d={d} />
       </div>
     </button>
   );
