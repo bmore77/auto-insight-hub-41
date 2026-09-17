@@ -27,7 +27,7 @@ import { channelBreakdown, CHANNEL_META } from "@/lib/channels";
 
 import { STATUS_LABEL, useActionPlans, type ActionPlan } from "@/lib/action-plans";
 
-export const Route = createFileRoute("/priority")({
+export const Route = createFileRoute("/_authenticated/priority")({
   head: () => ({
     meta: [
       { title: "Store Priority Ranking — Auto Canada" },

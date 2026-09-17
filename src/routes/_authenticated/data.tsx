@@ -41,7 +41,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/data")({
+export const Route = createFileRoute("/_authenticated/data")({
   head: () => ({
     meta: [
       { title: "Data Validation & Mapping — Auto Canada" },
