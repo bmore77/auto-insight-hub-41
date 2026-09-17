@@ -78,7 +78,7 @@ function AuthPage() {
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4">
       <div className="pointer-events-none absolute -top-40 left-1/2 h-[420px] w-[720px] -translate-x-1/2 rounded-full bg-brand/20 blur-3xl" />
       <div className="relative w-full max-w-md rounded-2xl border border-border/60 bg-card/80 p-8 shadow-xl backdrop-blur">
-        <img src={acLogo.src} alt="AutoCanada" className="mb-8 h-8 w-auto" />
+        <img src={acLogo.url} alt="AutoCanada" className="mb-8 h-8 w-auto" />
         <h1 className="font-display text-2xl font-semibold tracking-tight">
           {mode === "signin" ? "Sign in" : "Create your account"}
         </h1>
