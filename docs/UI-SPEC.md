@@ -540,7 +540,8 @@ Empty state: centered `py-16`, muted text "No dealerships match these filters", 
 Store/OEM logo badge with graceful degradation.
 
 - Sizes: `sm` 24px (`rounded-md`, text 9px), `md` 32px (`rounded-lg`, 10px), `lg` 44px (`rounded-xl`, 12px).
-- Attempts a logo image for the dealership's own domain (or its OEM domain) via a logo lookup service; caches `"ok" | "missing"` per domain in `localStorage` for 14 days so repeat renders never flicker or re-request.
+- Attempts a logo image for the dealership's own domain (or its OEM domain) via **Logo.dev's image CDN**: `https://img.logo.dev/{domain}?token={VITE_LOVABLE_CONNECTOR_LOGO_DEV_API_KEY}&size={size * 2}&format=png&retina=true`. Domain resolution order: a per-store domain map (exact store site, wins first) → a per-OEM domain map (e.g. `Ford → ford.ca`, `Volkswagen → vw.ca`) → `null` (straight to monogram). These domain maps are data your team supplies for your own store roster. Without a token configured, `logoUrl` returns `null` and every badge renders the monogram — an acceptable fallback, never a broken image.
+- Caches `"ok" | "missing"` per domain in `localStorage` (key `ac-logo-cache-v1`) for 14 days so repeat renders never flicker or re-request; an in-memory `Map` covers the current session.
 - Success state: `inline-flex shrink-0 items-center justify-center overflow-hidden bg-white ring-1 ring-black/5` with `<img class="h-full w-full object-contain p-0.5" loading="lazy" decoding="async">`.
 - Fallback: two-letter monogram badge using per-OEM background/foreground colors (Ford `#00274d`/white, Honda `#cc0000`/white, VW `#001e50`/white, BMW `#0166b1`, Kia `#05141f`, Porsche `#0f0f0f`/`#d5001c`, Cadillac `#1b2a41`/`#e3c565`, etc.), `font-display font-semibold tracking-wide`. Unknown brand → first two letters uppercased on `#3f4652`.
 - Always set `title` and `aria-label` to the brand name.
