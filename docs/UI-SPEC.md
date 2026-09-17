@@ -418,6 +418,22 @@ type Snapshot = {
 
 The UI needs a hook returning `{ metrics, snapshots, selected, selectId, source }` where `source` is `"snapshot" | "sample"`. When no published snapshot exists it falls back to embedded sample data and the picker shows a "Sample data" badge.
 
+### 3.4 Name normalization & alias mapping
+
+All name matching (import flow, validation, suggestions) normalizes both sides identically:
+
+```ts
+normalize(name) =
+  name.toLowerCase()
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")  // strip accents
+      .replace(/[.,'`"]/g, "")          // strip punctuation
+      .replace(/\s+/g, " ")
+      .trim()
+```
+
+The alias→canonical mapping is keyed by `normalize(alias)`. This app persists it in `localStorage` under `ac.dealership.mapping.v1` (a `{ [normalizedAlias]: canonicalName }` object) and broadcasts an `ac:mapping:changed` window event on every mutation so open views re-validate immediately. Your team can back this with your own store instead — but the normalization rules and the merge/replace import semantics must stay identical, or imported names and hand-entered mappings will disagree.
+
 ---
 
 ## 4. Application shell
@@ -576,6 +592,20 @@ Summary tiles row (`SummaryTile`): Roster stores · Mapped aliases · Unmatched 
 - Rows (`IssueRow`) inside a bordered card list. Each row: `IssueBadge` (kind = `missing` amber / `duplicate` blue / `unmatched` red, `rounded-full ... text-[10px] uppercase`), the offending source name in `font-mono text-xs`, the dataset it came from, and on the right a `Select` (`placeholder="Map to dealership…"`) plus up to 5 **suggestion chips** — closest canonical matches from fuzzy matching, each chip showing name + confidence %. Clicking a chip applies the mapping and toasts.
 - Empty state: "No issues found — all source names resolve."
 
+#### Fuzzy matching (drives the suggestion chips)
+
+Similarity is a **Dice coefficient over character bigrams** of the normalized names (see §3.4 for normalization):
+
+```ts
+// bigrams("maple ridge vw") -> ["ma","ap","pl",...]
+score = (2 * |bigrams(a) ∩ bigrams(b)|) / (|bigrams(a)| + |bigrams(b)|)
+```
+
+- Candidates: score every unmatched alias against the canonical roster, sort desc, keep the top 5.
+- The confidence % shown on a chip is `round(score * 100)`.
+- Exact normalized equality short-circuits to 100%. Very short aliases (< 4 chars after normalization) require a higher minimum score to avoid false positives.
+- The same algorithm powers the review-grid "Match candidates" in §10.
+
 ### Coverage
 - Search ("Search dealership") + filter toggles (All / Mapped / Unmatched / Verified metrics / Placeholder).
 - Grid of `CoverageCard`s: `BrandMark` + name, region/brand caption, and two status pills — mapping status and metric provenance ("Verified" vs "Placeholder").
@@ -650,3 +680,4 @@ Page h1 "Import screenshot data", subline about the manual bridge until the BI f
 - [ ] Priority weights are 55 / 20 / 15 / 10 and shown in the UI.
 - [ ] `prefers-reduced-motion` disables aurora, shimmer, pulse and lift transitions.
 - [ ] Each route has its own unique title and meta description.
+- [ ] Logo.dev token provided (`VITE_LOVABLE_CONNECTOR_LOGO_DEV_API_KEY`); without it BrandMark renders monograms only (acceptable fallback).
