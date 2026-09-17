@@ -418,6 +418,22 @@ type Snapshot = {
 
 The UI needs a hook returning `{ metrics, snapshots, selected, selectId, source }` where `source` is `"snapshot" | "sample"`. When no published snapshot exists it falls back to embedded sample data and the picker shows a "Sample data" badge.
 
+### 3.4 Name normalization & alias mapping
+
+All name matching (import flow, validation, suggestions) normalizes both sides identically:
+
+```ts
+normalize(name) =
+  name.toLowerCase()
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")  // strip accents
+      .replace(/[.,'`"]/g, "")          // strip punctuation
+      .replace(/\s+/g, " ")
+      .trim()
+```
+
+The alias→canonical mapping is keyed by `normalize(alias)`. This app persists it in `localStorage` under `ac.dealership.mapping.v1` (a `{ [normalizedAlias]: canonicalName }` object) and broadcasts an `ac:mapping:changed` window event on every mutation so open views re-validate immediately. Your team can back this with your own store instead — but the normalization rules and the merge/replace import semantics must stay identical, or imported names and hand-entered mappings will disagree.
+
 ---
 
 ## 4. Application shell
@@ -524,7 +540,8 @@ Empty state: centered `py-16`, muted text "No dealerships match these filters", 
 Store/OEM logo badge with graceful degradation.
 
 - Sizes: `sm` 24px (`rounded-md`, text 9px), `md` 32px (`rounded-lg`, 10px), `lg` 44px (`rounded-xl`, 12px).
-- Attempts a logo image for the dealership's own domain (or its OEM domain) via a logo lookup service; caches `"ok" | "missing"` per domain in `localStorage` for 14 days so repeat renders never flicker or re-request.
+- Attempts a logo image for the dealership's own domain (or its OEM domain) via **Logo.dev's image CDN**: `https://img.logo.dev/{domain}?token={VITE_LOVABLE_CONNECTOR_LOGO_DEV_API_KEY}&size={size * 2}&format=png&retina=true`. Domain resolution order: a per-store domain map (exact store site, wins first) → a per-OEM domain map (e.g. `Ford → ford.ca`, `Volkswagen → vw.ca`) → `null` (straight to monogram). These domain maps are data your team supplies for your own store roster. Without a token configured, `logoUrl` returns `null` and every badge renders the monogram — an acceptable fallback, never a broken image.
+- Caches `"ok" | "missing"` per domain in `localStorage` (key `ac-logo-cache-v1`) for 14 days so repeat renders never flicker or re-request; an in-memory `Map` covers the current session.
 - Success state: `inline-flex shrink-0 items-center justify-center overflow-hidden bg-white ring-1 ring-black/5` with `<img class="h-full w-full object-contain p-0.5" loading="lazy" decoding="async">`.
 - Fallback: two-letter monogram badge using per-OEM background/foreground colors (Ford `#00274d`/white, Honda `#cc0000`/white, VW `#001e50`/white, BMW `#0166b1`, Kia `#05141f`, Porsche `#0f0f0f`/`#d5001c`, Cadillac `#1b2a41`/`#e3c565`, etc.), `font-display font-semibold tracking-wide`. Unknown brand → first two letters uppercased on `#3f4652`.
 - Always set `title` and `aria-label` to the brand name.
@@ -575,6 +592,20 @@ Summary tiles row (`SummaryTile`): Roster stores · Mapped aliases · Unmatched 
 - Search input ("Search name") + kind filter.
 - Rows (`IssueRow`) inside a bordered card list. Each row: `IssueBadge` (kind = `missing` amber / `duplicate` blue / `unmatched` red, `rounded-full ... text-[10px] uppercase`), the offending source name in `font-mono text-xs`, the dataset it came from, and on the right a `Select` (`placeholder="Map to dealership…"`) plus up to 5 **suggestion chips** — closest canonical matches from fuzzy matching, each chip showing name + confidence %. Clicking a chip applies the mapping and toasts.
 - Empty state: "No issues found — all source names resolve."
+
+#### Fuzzy matching (drives the suggestion chips)
+
+Similarity is a **Dice coefficient over character bigrams** of the normalized names (see §3.4 for normalization):
+
+```ts
+// bigrams("maple ridge vw") -> ["ma","ap","pl",...]
+score = (2 * |bigrams(a) ∩ bigrams(b)|) / (|bigrams(a)| + |bigrams(b)|)
+```
+
+- Candidates: score every unmatched alias against the canonical roster, sort desc, keep the top 5.
+- The confidence % shown on a chip is `round(score * 100)`.
+- Exact normalized equality short-circuits to 100%. Very short aliases (< 4 chars after normalization) require a higher minimum score to avoid false positives.
+- The same algorithm powers the review-grid "Match candidates" in §10.
 
 ### Coverage
 - Search ("Search dealership") + filter toggles (All / Mapped / Unmatched / Verified metrics / Placeholder).
@@ -650,3 +681,4 @@ Page h1 "Import screenshot data", subline about the manual bridge until the BI f
 - [ ] Priority weights are 55 / 20 / 15 / 10 and shown in the UI.
 - [ ] `prefers-reduced-motion` disables aurora, shimmer, pulse and lift transitions.
 - [ ] Each route has its own unique title and meta description.
+- [ ] Logo.dev token provided (`VITE_LOVABLE_CONNECTOR_LOGO_DEV_API_KEY`); without it BrandMark renders monograms only (acceptable fallback).
