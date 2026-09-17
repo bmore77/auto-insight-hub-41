@@ -33,7 +33,7 @@ import {
 import { parseScreenshot, type ParsedTable } from "@/lib/screenshot-parse.functions";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/import")({
+export const Route = createFileRoute("/_authenticated/import")({
   head: () => ({
     meta: [
       { title: "Import Screenshot Data — Auto Canada" },
