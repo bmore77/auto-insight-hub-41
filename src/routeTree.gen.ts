@@ -9,104 +9,109 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as PriorityRouteImport } from './routes/priority'
-import { Route as ImportRouteImport } from './routes/import'
-import { Route as DataRouteImport } from './routes/data'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedPriorityRouteImport } from './routes/_authenticated/priority'
+import { Route as AuthenticatedImportRouteImport } from './routes/_authenticated/import'
+import { Route as AuthenticatedDataRouteImport } from './routes/_authenticated/data'
 
-const PriorityRoute = PriorityRouteImport.update({
-  id: '/priority',
+const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
+  id: '/_authenticated/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedPriorityRoute = AuthenticatedPriorityRouteImport.update({
+  id: '/_authenticated/priority',
   path: '/priority',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ImportRoute = ImportRouteImport.update({
-  id: '/import',
+const AuthenticatedImportRoute = AuthenticatedImportRouteImport.update({
+  id: '/_authenticated/import',
   path: '/import',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DataRoute = DataRouteImport.update({
-  id: '/data',
+const AuthenticatedDataRoute = AuthenticatedDataRouteImport.update({
+  id: '/_authenticated/data',
   path: '/data',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/data': typeof DataRoute
-  '/import': typeof ImportRoute
-  '/priority': typeof PriorityRoute
+  '/data': typeof AuthenticatedDataRoute
+  '/import': typeof AuthenticatedImportRoute
+  '/priority': typeof AuthenticatedPriorityRoute
+  '/': typeof AuthenticatedIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/data': typeof DataRoute
-  '/import': typeof ImportRoute
-  '/priority': typeof PriorityRoute
+  '/data': typeof AuthenticatedDataRoute
+  '/import': typeof AuthenticatedImportRoute
+  '/priority': typeof AuthenticatedPriorityRoute
+  '/': typeof AuthenticatedIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/data': typeof DataRoute
-  '/import': typeof ImportRoute
-  '/priority': typeof PriorityRoute
+  '/_authenticated/data': typeof AuthenticatedDataRoute
+  '/_authenticated/import': typeof AuthenticatedImportRoute
+  '/_authenticated/priority': typeof AuthenticatedPriorityRoute
+  '/_authenticated/': typeof AuthenticatedIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/data' | '/import' | '/priority'
+  fullPaths: '/data' | '/import' | '/priority' | '/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/data' | '/import' | '/priority'
-  id: '__root__' | '/' | '/data' | '/import' | '/priority'
+  to: '/data' | '/import' | '/priority' | '/'
+  id:
+    | '__root__'
+    | '/_authenticated/data'
+    | '/_authenticated/import'
+    | '/_authenticated/priority'
+    | '/_authenticated/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  DataRoute: typeof DataRoute
-  ImportRoute: typeof ImportRoute
-  PriorityRoute: typeof PriorityRoute
+  AuthenticatedDataRoute: typeof AuthenticatedDataRoute
+  AuthenticatedImportRoute: typeof AuthenticatedImportRoute
+  AuthenticatedPriorityRoute: typeof AuthenticatedPriorityRoute
+  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/priority': {
-      id: '/priority'
-      path: '/priority'
-      fullPath: '/priority'
-      preLoaderRoute: typeof PriorityRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/import': {
-      id: '/import'
-      path: '/import'
-      fullPath: '/import'
-      preLoaderRoute: typeof ImportRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/data': {
-      id: '/data'
-      path: '/data'
-      fullPath: '/data'
-      preLoaderRoute: typeof DataRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/': {
-      id: '/'
+    '/_authenticated/': {
+      id: '/_authenticated/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/priority': {
+      id: '/_authenticated/priority'
+      path: '/priority'
+      fullPath: '/priority'
+      preLoaderRoute: typeof AuthenticatedPriorityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/import': {
+      id: '/_authenticated/import'
+      path: '/import'
+      fullPath: '/import'
+      preLoaderRoute: typeof AuthenticatedImportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/data': {
+      id: '/_authenticated/data'
+      path: '/data'
+      fullPath: '/data'
+      preLoaderRoute: typeof AuthenticatedDataRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  DataRoute: DataRoute,
-  ImportRoute: ImportRoute,
-  PriorityRoute: PriorityRoute,
+  AuthenticatedDataRoute: AuthenticatedDataRoute,
+  AuthenticatedImportRoute: AuthenticatedImportRoute,
+  AuthenticatedPriorityRoute: AuthenticatedPriorityRoute,
+  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
